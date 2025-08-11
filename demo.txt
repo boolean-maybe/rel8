@@ -1,0 +1,57 @@
+# Complete Table Demo Script
+# This script demonstrates table browsing and detail viewing
+
+# Wait for application to initialize
+s(2000)
+
+# Enter command mode
+:
+
+# Type "table" command slowly for visibility
+s(200),t,s(200),a,s(200),b,s(200),l,s(200),e,s(200)
+
+# Execute the table command
+Enter,s(1000)
+
+# Navigate through the table rows
+Down,s(200) # Move to first row
+Down,s(200) # Move to second row
+Down,s(1000) # Move to third row and pause
+
+# Select current row to view details
+Enter,sleep(1000) # Press Enter and wait
+
+# Navigate within the details view
+Down,s(200) # Move down 1
+Down,s(200) # Move down 2
+Down,s(200) # Move down 3
+Down,s(200) # Move down 4
+Down,s(200) # Move down 5
+Up,s(200) # Move up 1
+Up,s(200) # Move up 2
+Up,s(200) # Move up 3
+Up,s(200) # Move up 4
+Up,s(200) # Move up 5
+
+# Return to table view by typing "table" again
+:,s(200),t,s(200),a,s(200),b,s(200),l,s(200),e,s(200)
+Enter, s(2000)
+
+# Navigate within the details view
+Down,s(200) # Move down 1
+Down,s(200) # Move down 2
+Down,s(200) # Move down 3
+Down,s(200) # Move down 4
+Down,s(200) # Move down 5
+Up,s(200) # Move up 1
+Up,s(200) # Move up 2
+Up,s(200) # Move up 3
+Up,s(200) # Move up 4
+Up,s(200) # Move up 5
+
+# View details of current selection
+d,s(3000) # Press 'd' for details view
+
+# Exit the application
+:,q,s(1000) # Type quit command
+Enter,s(1000) # Execute quit and wait
