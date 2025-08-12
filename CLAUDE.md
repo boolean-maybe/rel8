@@ -103,6 +103,27 @@ const (
 - Centralized color management system
 - Configurable color schemes
 - Support for both tcell.Color and tview color tags
+- Selection band color exposed as `Colors.SelectionBandBg`
+
+## Row Selection, Full-Width Highlighting, and Column Expansion
+
+### Selection behavior
+- Table configured for rows-only selection via `SetSelectable(true, false)` (`view/grid.go`).
+- Initial selection starts at first data row; selection is restored on state transitions.
+
+### Per-cell selection styling
+- `RefreshSelectionHighlight()` styles the selected row's cells (foreground/background) and resets others.
+- For the selected row only, missing trailing cells up to `headerCount` are synthesized so the last logical column exists and receives highlight.
+
+### Full-width selection band
+- A full-width band is painted after draw to cover any right-side gap beyond the last cell.
+- `Grid.DrawSelectionBand(screen)` sets only the background for the selected screen row, preserving runes and foreground colors.
+- `Grid.AttachSelectionBand(app, shouldDraw)` chains into the app's after-draw and paints the band when `shouldDraw()` is true. We enable this in Browse, Command, and SQL modes.
+- Row alignment accounts for scroll via `getRowOffsetUnsafe()`.
+
+### Column expansion
+- Default expansion is uniform (`SetExpansion(1)`) for predictable layout.
+- After populate, `StretchLastColumn()` increases expansion on the last existing column to better absorb leftover width, complementing the band.
 
 ## Key Workflows
 

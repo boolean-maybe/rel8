@@ -161,12 +161,12 @@ func (v *View) Run() {
 		return v.stateManager.HandleEvent(e)
 	})
 
-	// after each draw, paint a k9s-style selection band so the row highlight spans full width
-	v.App.SetAfterDrawFunc(func(screen tcell.Screen) {
-		// draw selection band only when browsing the grid; avoid painting over other views
-		if v.model != nil && v.model.Mode == model.Browse && v.grid != nil {
-			v.grid.DrawSelectionBand(screen)
+	// attach selection band painting via the grid, gated to Browse mode
+	v.grid.AttachSelectionBand(v.App, func() bool {
+		if v.model == nil {
+			return false
 		}
+		return v.model.Mode == model.Browse || v.model.Mode == model.Command || v.model.Mode == model.SQL
 	})
 
 	// Run the application

@@ -151,7 +151,7 @@ func (g *Grid) StretchLastColumn() {
 }
 
 // getRowOffsetUnsafe reads tview.Table's private rowOffset field to align the band with the visible row
-// this mirrors k9s' approach of drawing a cursor band at the actual on-screen row position
+// drawing a cursor band at the actual on-screen row position
 func (g *Grid) getRowOffsetUnsafe() int {
 	if g.Table == nil {
 		return 0
@@ -171,7 +171,7 @@ func (g *Grid) getRowOffsetUnsafe() int {
 }
 
 // DrawSelectionBand paints a full-width band on the selected row across the table's inner rect
-// this mirrors k9s' cursor band while keeping normal drawing intact (use via Application.SetAfterDrawFunc)
+// cursor band while keeping normal drawing intact (use via Application.SetAfterDrawFunc)
 func (g *Grid) DrawSelectionBand(screen tcell.Screen) {
 	if g.Table == nil {
 		return
@@ -195,6 +195,24 @@ func (g *Grid) DrawSelectionBand(screen tcell.Screen) {
 		st = st.Background(Colors.SelectionBandBg)
 		screen.SetContent(ix+cx, rowY, mainc, combc, st)
 	}
+}
+
+// AttachSelectionBand registers an after-draw hook on the app that paints
+// a full-width selection band when shouldDraw returns true. It preserves
+// any existing after-draw handler by chaining it first.
+func (g *Grid) AttachSelectionBand(app *tview.Application, shouldDraw func() bool) {
+	if app == nil || g == nil {
+		return
+	}
+	prev := app.GetAfterDrawFunc()
+	app.SetAfterDrawFunc(func(screen tcell.Screen) {
+		if prev != nil {
+			prev(screen)
+		}
+		if shouldDraw != nil && shouldDraw() {
+			g.DrawSelectionBand(screen)
+		}
+	})
 }
 
 // Select overrides tview.Table.Select to also refresh full-row highlighting
