@@ -498,3 +498,148 @@ func TestMockFetchSqlRows(t *testing.T) {
 	assert.Equal(t, "Mock result row 10", lastRow["result"])
 	assert.Equal(t, testSQL, lastRow["query_executed"])
 }
+
+func TestMockGetServerInfo(t *testing.T) {
+	mock := &MysqlMock{}
+	ctx := context.Background()
+
+	serverInfo := mock.GetServerInfo(ctx)
+
+	// Verify expected keys are present and have values
+	assert.Equal(t, "MySQL 8.0.30-mock", serverInfo["version"])
+	assert.Equal(t, "mock_user", serverInfo["user"])
+	assert.Equal(t, "localhost", serverInfo["host"])
+	assert.Equal(t, "mock-server", serverInfo["server_host"])
+	assert.Equal(t, "3306", serverInfo["port"])
+	assert.Equal(t, "mock_database", serverInfo["database"])
+	assert.Equal(t, "151", serverInfo["max_connections"])
+	assert.Equal(t, "128.0 MB", serverInfo["innodb_buffer_pool_size"])
+}
+
+func TestGetServerInfo(t *testing.T) {
+	tests := []struct {
+		name           string
+		mockSetup      func(sqlmock.Sqlmock)
+		expectedValues map[string]string
+	}{
+		{
+			name: "successful server info fetch",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				// Mock version query
+				versionRows := sqlmock.NewRows([]string{"Variable_name", "Value"}).
+					AddRow("version", "8.0.32")
+				mock.ExpectQuery("SHOW VARIABLES LIKE 'version'").
+					WillReturnRows(versionRows)
+
+				// Mock connection info query
+				connRows := sqlmock.NewRows([]string{"USER()", "@@hostname", "@@port", "DATABASE()"}).
+					AddRow("testuser@localhost", "dbserver", "3306", "testdb")
+				mock.ExpectQuery("SELECT USER\\(\\), @@hostname, @@port, DATABASE\\(\\)").
+					WillReturnRows(connRows)
+
+				// Mock max_connections query
+				maxConnRows := sqlmock.NewRows([]string{"Variable_name", "Value"}).
+					AddRow("max_connections", "500")
+				mock.ExpectQuery("SHOW VARIABLES LIKE 'max_connections'").
+					WillReturnRows(maxConnRows)
+
+				// Mock innodb_buffer_pool_size query
+				bufferPoolRows := sqlmock.NewRows([]string{"Variable_name", "Value"}).
+					AddRow("innodb_buffer_pool_size", "134217728") // 128MB in bytes
+				mock.ExpectQuery("SHOW VARIABLES LIKE 'innodb_buffer_pool_size'").
+					WillReturnRows(bufferPoolRows)
+			},
+			expectedValues: map[string]string{
+				"version":                 "MySQL 8.0.32",
+				"user":                    "testuser",
+				"host":                    "localhost",
+				"server_host":             "dbserver",
+				"port":                    "3306",
+				"database":                "testdb",
+				"max_connections":         "500",
+				"innodb_buffer_pool_size": "128.0 MB",
+			},
+		},
+		{
+			name: "version query fails",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				// Mock version query with error
+				mock.ExpectQuery("SHOW VARIABLES LIKE 'version'").
+					WillReturnError(sql.ErrConnDone)
+
+				// Mock connection info query
+				connRows := sqlmock.NewRows([]string{"USER()", "@@hostname", "@@port", "DATABASE()"}).
+					AddRow("testuser@localhost", "dbserver", "3306", "testdb")
+				mock.ExpectQuery("SELECT USER\\(\\), @@hostname, @@port, DATABASE\\(\\)").
+					WillReturnRows(connRows)
+
+				// Mock max_connections query
+				maxConnRows := sqlmock.NewRows([]string{"Variable_name", "Value"}).
+					AddRow("max_connections", "500")
+				mock.ExpectQuery("SHOW VARIABLES LIKE 'max_connections'").
+					WillReturnRows(maxConnRows)
+
+				// Mock innodb_buffer_pool_size query
+				bufferPoolRows := sqlmock.NewRows([]string{"Variable_name", "Value"}).
+					AddRow("innodb_buffer_pool_size", "134217728") // 128MB in bytes
+				mock.ExpectQuery("SHOW VARIABLES LIKE 'innodb_buffer_pool_size'").
+					WillReturnRows(bufferPoolRows)
+			},
+			expectedValues: map[string]string{
+				"version": "Unknown",
+			},
+		},
+		{
+			name: "connection info query fails",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				// Mock version query
+				versionRows := sqlmock.NewRows([]string{"Variable_name", "Value"}).
+					AddRow("version", "8.0.32")
+				mock.ExpectQuery("SHOW VARIABLES LIKE 'version'").
+					WillReturnRows(versionRows)
+
+				// Mock connection info query with error
+				mock.ExpectQuery("SELECT USER\\(\\), @@hostname, @@port, DATABASE\\(\\)").
+					WillReturnError(sql.ErrConnDone)
+
+				// Mock max_connections query
+				maxConnRows := sqlmock.NewRows([]string{"Variable_name", "Value"}).
+					AddRow("max_connections", "500")
+				mock.ExpectQuery("SHOW VARIABLES LIKE 'max_connections'").
+					WillReturnRows(maxConnRows)
+
+				// Mock innodb_buffer_pool_size query
+				bufferPoolRows := sqlmock.NewRows([]string{"Variable_name", "Value"}).
+					AddRow("innodb_buffer_pool_size", "134217728") // 128MB in bytes
+				mock.ExpectQuery("SHOW VARIABLES LIKE 'innodb_buffer_pool_size'").
+					WillReturnRows(bufferPoolRows)
+			},
+			expectedValues: map[string]string{
+				"user":     "Unknown",
+				"host":     "Unknown",
+				"database": "Unknown",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockDB, mock, err := sqlmock.New()
+			assert.NoError(t, err)
+			defer mockDB.Close()
+
+			tt.mockSetup(mock)
+
+			mysql := &Mysql8{Mysql{DbInstance: mockDB}}
+			ctx := context.Background()
+			serverInfo := mysql.GetServerInfo(ctx)
+
+			// Verify expected keys have the correct values
+			for key, expectedValue := range tt.expectedValues {
+				assert.Equal(t, expectedValue, serverInfo[key], "Value mismatch for key %s", key)
+			}
+
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}

@@ -2,8 +2,11 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log/slog"
+	"strconv"
+	"strings"
 )
 
 type Mysql8 struct {
@@ -312,4 +315,104 @@ func (m *Mysql8) FetchSqlRows(ctx context.Context, sqlQuery string) ([]string, [
 
 	slog.Debug("FetchSqlRows: Processing complete", "query", sqlQuery, "rowsFound", rowCount)
 	return columnNames, tableData
+}
+
+// GetServerInfo retrieves MySQL server information
+func (m *Mysql8) GetServerInfo(ctx context.Context) map[string]string {
+	slog.Debug("GetServerInfo: Retrieving MySQL server information")
+	serverInfo := make(map[string]string)
+
+	// Get server version
+	versionQuery := "SHOW VARIABLES LIKE 'version'"
+	versionRows, err := m.Db().QueryContext(ctx, versionQuery)
+	if err == nil {
+		defer versionRows.Close()
+		if versionRows.Next() {
+			var name, version string
+			if err := versionRows.Scan(&name, &version); err == nil {
+				serverInfo["version"] = "MySQL " + version
+			}
+		}
+	} else {
+		slog.Error("GetServerInfo: Failed to get version", "error", err)
+		serverInfo["version"] = "Unknown"
+	}
+
+	// Get connection info (user, host, port)
+	connQuery := "SELECT USER(), @@hostname, @@port, DATABASE()"
+	connRows, err := m.Db().QueryContext(ctx, connQuery)
+	if err == nil {
+		defer connRows.Close()
+		if connRows.Next() {
+			var userWithHost, hostname, port, database sql.NullString
+			if err := connRows.Scan(&userWithHost, &hostname, &port, &database); err == nil {
+				// USER() returns user@host format, extract just username
+				if userWithHost.Valid {
+					parts := strings.Split(userWithHost.String, "@")
+					serverInfo["user"] = parts[0]
+					if len(parts) > 1 {
+						serverInfo["host"] = parts[1]
+					}
+				}
+
+				if hostname.Valid {
+					serverInfo["server_host"] = hostname.String
+				}
+
+				if port.Valid {
+					serverInfo["port"] = port.String
+				}
+
+				if database.Valid {
+					serverInfo["database"] = database.String
+				}
+			}
+		}
+	} else {
+		slog.Error("GetServerInfo: Failed to get connection info", "error", err)
+		serverInfo["user"] = "Unknown"
+		serverInfo["host"] = "Unknown"
+		serverInfo["port"] = "Unknown"
+		serverInfo["database"] = "Unknown"
+	}
+
+	// Get max_connections
+	maxConnQuery := "SHOW VARIABLES LIKE 'max_connections'"
+	maxConnRows, err := m.Db().QueryContext(ctx, maxConnQuery)
+	if err == nil {
+		defer maxConnRows.Close()
+		if maxConnRows.Next() {
+			var name, value string
+			if err := maxConnRows.Scan(&name, &value); err == nil {
+				serverInfo["max_connections"] = value
+			}
+		}
+	} else {
+		slog.Error("GetServerInfo: Failed to get max_connections", "error", err)
+		serverInfo["max_connections"] = "Unknown"
+	}
+
+	// Get innodb_buffer_pool_size
+	bufferPoolQuery := "SHOW VARIABLES LIKE 'innodb_buffer_pool_size'"
+	bufferPoolRows, err := m.Db().QueryContext(ctx, bufferPoolQuery)
+	if err == nil {
+		defer bufferPoolRows.Close()
+		if bufferPoolRows.Next() {
+			var name, value string
+			if err := bufferPoolRows.Scan(&name, &value); err == nil {
+				// Convert to MB for better readability
+				bufferPoolSizeMB := "Unknown"
+				if bufferPoolSize, err := strconv.ParseInt(value, 10, 64); err == nil {
+					bufferPoolSizeMB = fmt.Sprintf("%.1f MB", float64(bufferPoolSize)/(1024*1024))
+				}
+				serverInfo["innodb_buffer_pool_size"] = bufferPoolSizeMB
+			}
+		}
+	} else {
+		slog.Error("GetServerInfo: Failed to get innodb_buffer_pool_size", "error", err)
+		serverInfo["innodb_buffer_pool_size"] = "Unknown"
+	}
+
+	slog.Debug("GetServerInfo: Retrieved server information", "info", serverInfo)
+	return serverInfo
 }

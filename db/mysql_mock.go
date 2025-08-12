@@ -118,3 +118,21 @@ func (m *MysqlMock) FetchSqlRows(ctx context.Context, sqlQuery string) ([]string
 	slog.Debug("FetchSqlRows: Mock processing complete", "query", sqlQuery, "rowsReturned", len(tableData))
 	return headers, tableData
 }
+
+// GetServerInfo returns mock MySQL server information
+func (m *MysqlMock) GetServerInfo(ctx context.Context) map[string]string {
+	slog.Debug("GetServerInfo: Returning mock MySQL server information")
+
+	serverInfo := map[string]string{
+		"version":                 "MySQL 8.0.30-mock",
+		"user":                    "mock_user",
+		"host":                    "localhost",
+		"server_host":             "mock-server",
+		"port":                    "3306",
+		"database":                "mock_database",
+		"max_connections":         "151",
+		"innodb_buffer_pool_size": "128.0 MB",
+	}
+
+	return serverInfo
+}

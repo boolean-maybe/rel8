@@ -15,6 +15,7 @@ type DatabaseServer interface {
 	FetchSqlRows(ctx context.Context, SQL string) ([]string, []TableData)
 	FetchDatabases(ctx context.Context) ([]string, []TableData)
 	FetchTables(ctx context.Context) ([]string, []TableData)
+	GetServerInfo(ctx context.Context) map[string]string
 }
 
 func Connect(connStr string, useMock bool) DatabaseServer {

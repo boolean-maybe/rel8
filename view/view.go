@@ -32,6 +32,9 @@ func NewView(stateManager *model.ContextualStateManager) *View {
 	// Create command bar (initially hidden)
 	commandBar := NewCommandBar()
 
+	// Set the server in the header and update the server info
+	header.SetServer(stateManager.GetServer())
+
 	// Create layout with command bar
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
@@ -57,6 +60,10 @@ func NewView(stateManager *model.ContextualStateManager) *View {
 func (v *View) OnStateTransition(transition model.StateTransition) {
 	//todo take address?
 	v.model = &transition.To
+
+	// Update server info in header when state changes
+	// This ensures the header shows the current database when it changes
+	v.header.UpdateServerInfo()
 
 	if transition.To.Mode == model.QuitMode {
 		v.App.Stop()
