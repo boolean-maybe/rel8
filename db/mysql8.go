@@ -317,6 +317,298 @@ func (m *Mysql8) FetchSqlRows(ctx context.Context, sqlQuery string) ([]string, [
 	return columnNames, tableData
 }
 
+// FetchProcedures queries the database for stored procedure information
+func (m *Mysql8) FetchProcedures(ctx context.Context) ([]string, []TableData) {
+	slog.Debug("FetchProcedures: Starting database stored procedure fetch")
+	headers := []string{"NAME", "TYPE", "DEFINER", "CREATED", "MODIFIED", "SQL_MODE", "SECURITY_TYPE"}
+	procedures := []MysqlTable{}
+
+	// Query to get stored procedure information from information_schema
+	query := `
+		SELECT 
+			ROUTINE_NAME,
+			'PROCEDURE' as ROUTINE_TYPE,
+			DEFINER,
+			CREATED,
+			LAST_ALTERED,
+			SQL_MODE,
+			SECURITY_TYPE
+		FROM information_schema.ROUTINES
+		WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+		ORDER BY ROUTINE_NAME
+	`
+
+	slog.Debug("FetchProcedures: Executing query", "query", query)
+	rows, err := m.Db().QueryContext(ctx, query)
+	if err != nil {
+		slog.Error("FetchProcedures: Query failed, returning empty data", "error", err)
+		// If query fails, return empty data
+		return []string{}, []TableData{}
+	}
+	defer rows.Close()
+
+	slog.Debug("FetchProcedures: Query successful, processing rows")
+	rowCount := 0
+	for rows.Next() {
+		var name, routineType, definer, created, modified, sqlMode, securityType sql.NullString
+
+		err := rows.Scan(&name, &routineType, &definer, &created, &modified, &sqlMode, &securityType)
+		if err != nil {
+			slog.Warn("FetchProcedures: Failed to scan row, skipping", "error", err)
+			continue
+		}
+
+		// Create a table-like structure for procedures
+		proc := MysqlTable{
+			Name:   name.String,
+			Type:   routineType.String,
+			Engine: definer.String,
+			Rows: fmt.Sprintf("%s / %s",
+				created.String[:10]+" "+created.String[11:19],
+				modified.String[:10]+" "+modified.String[11:19]),
+			Size: securityType.String,
+		}
+
+		slog.Debug("FetchProcedures: Processed procedure", "name", proc.Name)
+		procedures = append(procedures, proc)
+		rowCount++
+	}
+
+	slog.Debug("FetchProcedures: Processing complete", "proceduresFound", rowCount)
+
+	// If no procedures found, return empty data
+	if len(procedures) == 0 {
+		slog.Info("FetchProcedures: No procedures found, returning empty data")
+		return headers, []TableData{}
+	}
+
+	slog.Debug("FetchProcedures: Returning real data", "procedureCount", len(procedures))
+	var procData []TableData
+	for _, item := range procedures {
+		procData = append(procData, item)
+	}
+
+	return headers, procData
+}
+
+// FetchFunctions queries the database for function information
+func (m *Mysql8) FetchFunctions(ctx context.Context) ([]string, []TableData) {
+	slog.Debug("FetchFunctions: Starting database function fetch")
+	headers := []string{"NAME", "TYPE", "DEFINER", "CREATED", "MODIFIED", "RETURN_TYPE", "IS_DETERMINISTIC"}
+	functions := []MysqlTable{}
+
+	// Query to get function information from information_schema
+	query := `
+		SELECT 
+			ROUTINE_NAME,
+			'FUNCTION' as ROUTINE_TYPE,
+			DEFINER,
+			CREATED,
+			LAST_ALTERED,
+			DATA_TYPE,
+			IS_DETERMINISTIC
+		FROM information_schema.ROUTINES
+		WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+		ORDER BY ROUTINE_NAME
+	`
+
+	slog.Debug("FetchFunctions: Executing query", "query", query)
+	rows, err := m.Db().QueryContext(ctx, query)
+	if err != nil {
+		slog.Error("FetchFunctions: Query failed, returning empty data", "error", err)
+		// If query fails, return empty data
+		return []string{}, []TableData{}
+	}
+	defer rows.Close()
+
+	slog.Debug("FetchFunctions: Query successful, processing rows")
+	rowCount := 0
+	for rows.Next() {
+		var name, routineType, definer, created, modified, dataType, isDeterministic sql.NullString
+
+		err := rows.Scan(&name, &routineType, &definer, &created, &modified, &dataType, &isDeterministic)
+		if err != nil {
+			slog.Warn("FetchFunctions: Failed to scan row, skipping", "error", err)
+			continue
+		}
+
+		// Create a table-like structure for functions
+		fn := MysqlTable{
+			Name:   name.String,
+			Type:   routineType.String,
+			Engine: definer.String,
+			Rows: fmt.Sprintf("%s / %s",
+				created.String[:10]+" "+created.String[11:19],
+				modified.String[:10]+" "+modified.String[11:19]),
+			Size: fmt.Sprintf("%s (%s)", dataType.String, isDeterministic.String),
+		}
+
+		slog.Debug("FetchFunctions: Processed function", "name", fn.Name)
+		functions = append(functions, fn)
+		rowCount++
+	}
+
+	slog.Debug("FetchFunctions: Processing complete", "functionsFound", rowCount)
+
+	// If no functions found, return empty data
+	if len(functions) == 0 {
+		slog.Info("FetchFunctions: No functions found, returning empty data")
+		return headers, []TableData{}
+	}
+
+	slog.Debug("FetchFunctions: Returning real data", "functionCount", len(functions))
+	var fnData []TableData
+	for _, item := range functions {
+		fnData = append(fnData, item)
+	}
+
+	return headers, fnData
+}
+
+// FetchTriggers queries the database for trigger information
+func (m *Mysql8) FetchTriggers(ctx context.Context) ([]string, []TableData) {
+	slog.Debug("FetchTriggers: Starting database trigger fetch")
+	headers := []string{"NAME", "EVENT", "TABLE", "TIMING", "DEFINER", "CREATED"}
+	triggers := []MysqlTable{}
+
+	// Query to get trigger information from information_schema
+	query := `
+		SELECT 
+			TRIGGER_NAME,
+			EVENT_MANIPULATION,
+			EVENT_OBJECT_TABLE,
+			ACTION_TIMING,
+			DEFINER,
+			CREATED
+		FROM information_schema.TRIGGERS
+		WHERE TRIGGER_SCHEMA = DATABASE()
+		ORDER BY TRIGGER_NAME
+	`
+
+	slog.Debug("FetchTriggers: Executing query", "query", query)
+	rows, err := m.Db().QueryContext(ctx, query)
+	if err != nil {
+		slog.Error("FetchTriggers: Query failed, returning empty data", "error", err)
+		// If query fails, return empty data
+		return []string{}, []TableData{}
+	}
+	defer rows.Close()
+
+	slog.Debug("FetchTriggers: Query successful, processing rows")
+	rowCount := 0
+	for rows.Next() {
+		var name, event, table, timing, definer, created sql.NullString
+
+		err := rows.Scan(&name, &event, &table, &timing, &definer, &created)
+		if err != nil {
+			slog.Warn("FetchTriggers: Failed to scan row, skipping", "error", err)
+			continue
+		}
+
+		// Create a table-like structure for triggers
+		trigger := MysqlTable{
+			Name:   name.String,
+			Type:   event.String,
+			Engine: table.String,
+			Rows:   timing.String,
+			Size:   fmt.Sprintf("%s (%s)", definer.String, created.String[:19]),
+		}
+
+		slog.Debug("FetchTriggers: Processed trigger", "name", trigger.Name)
+		triggers = append(triggers, trigger)
+		rowCount++
+	}
+
+	slog.Debug("FetchTriggers: Processing complete", "triggersFound", rowCount)
+
+	// If no triggers found, return empty data
+	if len(triggers) == 0 {
+		slog.Info("FetchTriggers: No triggers found, returning empty data")
+		return headers, []TableData{}
+	}
+
+	slog.Debug("FetchTriggers: Returning real data", "triggerCount", len(triggers))
+	var triggerData []TableData
+	for _, item := range triggers {
+		triggerData = append(triggerData, item)
+	}
+
+	return headers, triggerData
+}
+
+// FetchViews queries the database for view information
+func (m *Mysql8) FetchViews(ctx context.Context) ([]string, []TableData) {
+	slog.Debug("FetchViews: Starting database view fetch")
+	headers := []string{"NAME", "TYPE", "DEFINER", "CREATED", "UPDATED", "SECURITY_TYPE"}
+	views := []MysqlTable{}
+
+	// Query to get view information from information_schema
+	query := `
+		SELECT 
+			TABLE_NAME,
+			'VIEW' as TABLE_TYPE,
+			DEFINER,
+			CREATED,
+			LAST_ALTERED,
+			SECURITY_TYPE
+		FROM information_schema.VIEWS
+		WHERE TABLE_SCHEMA = DATABASE()
+		ORDER BY TABLE_NAME
+	`
+
+	slog.Debug("FetchViews: Executing query", "query", query)
+	rows, err := m.Db().QueryContext(ctx, query)
+	if err != nil {
+		slog.Error("FetchViews: Query failed, returning mock data", "error", err)
+		// If query fails, return empty data
+		return []string{}, []TableData{}
+	}
+	defer rows.Close()
+
+	slog.Debug("FetchViews: Query successful, processing rows")
+	rowCount := 0
+	for rows.Next() {
+		var name, viewType, definer, created, updated, securityType sql.NullString
+
+		err := rows.Scan(&name, &viewType, &definer, &created, &updated, &securityType)
+		if err != nil {
+			slog.Warn("FetchViews: Failed to scan row, skipping", "error", err)
+			continue
+		}
+
+		// Create a table-like structure for views
+		view := MysqlTable{
+			Name:   name.String,
+			Type:   viewType.String,
+			Engine: definer.String,
+			Rows: fmt.Sprintf("%s / %s",
+				created.String[:10]+" "+created.String[11:19],
+				updated.String[:10]+" "+updated.String[11:19]),
+			Size: securityType.String,
+		}
+
+		slog.Debug("FetchViews: Processed view", "name", view.Name)
+		views = append(views, view)
+		rowCount++
+	}
+
+	slog.Debug("FetchViews: Processing complete", "viewsFound", rowCount)
+
+	// If no views found, return empty data
+	if len(views) == 0 {
+		slog.Info("FetchViews: No views found, returning empty data")
+		return headers, []TableData{}
+	}
+
+	slog.Debug("FetchViews: Returning real data", "viewCount", len(views))
+	var viewData []TableData
+	for _, item := range views {
+		viewData = append(viewData, item)
+	}
+
+	return headers, viewData
+}
+
 // GetServerInfo retrieves MySQL server information
 func (m *Mysql8) GetServerInfo(ctx context.Context) map[string]string {
 	slog.Debug("GetServerInfo: Retrieving MySQL server information")

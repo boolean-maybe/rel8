@@ -1,10 +1,11 @@
 package view
 
 import (
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 	"log/slog"
 	"rel8/model"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 type View struct {
@@ -72,6 +73,14 @@ func (v *View) OnStateTransition(transition model.StateTransition) {
 	if transition.To.Mode == model.Browse {
 		// repopulate grid without recreating it
 		v.grid.Populate(transition.To.TableHeaders, transition.To.TableData)
+
+		// stretch last column in view-like datasets so highlight paints to edge (non-invasive)
+		if len(transition.To.TableHeaders) > 0 {
+			h := transition.To.TableHeaders
+			if (len(h) >= 5 && (h[0] == "NAME" && h[1] == "TYPE")) || (len(h) >= 6 && h[len(h)-1] == "SECURITY_TYPE") {
+				v.grid.StretchLastColumn()
+			}
+		}
 
 		// Restore the selected row if one was saved
 		v.grid.RestoreSelection(transition.To.SelectedDataIndex, len(transition.To.TableData))
@@ -150,6 +159,14 @@ func (v *View) Run() {
 
 		//todo this is a single place that requires state manager. Replace with a function
 		return v.stateManager.HandleEvent(e)
+	})
+
+	// after each draw, paint a k9s-style selection band so the row highlight spans full width
+	v.App.SetAfterDrawFunc(func(screen tcell.Screen) {
+		// draw selection band only when browsing the grid; avoid painting over other views
+		if v.model != nil && v.model.Mode == model.Browse && v.grid != nil {
+			v.grid.DrawSelectionBand(screen)
+		}
 	})
 
 	// Run the application

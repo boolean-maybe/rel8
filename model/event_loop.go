@@ -59,6 +59,42 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 					TableHeaders: headers,
 					TableData:    data,
 				})
+
+			case "view", "views":
+				headers, data := csm.server.FetchViews(ctx)
+				csm.PushState(ctx, State{
+					Mode:         Browse,
+					TableMode:    View,
+					TableHeaders: headers,
+					TableData:    data,
+				})
+
+			case "procedure", "procedures", "proc", "procs":
+				headers, data := csm.server.FetchProcedures(ctx)
+				csm.PushState(ctx, State{
+					Mode:         Browse,
+					TableMode:    Procedure,
+					TableHeaders: headers,
+					TableData:    data,
+				})
+
+			case "function", "functions", "func", "funcs":
+				headers, data := csm.server.FetchFunctions(ctx)
+				csm.PushState(ctx, State{
+					Mode:         Browse,
+					TableMode:    Function,
+					TableHeaders: headers,
+					TableData:    data,
+				})
+
+			case "trigger", "triggers":
+				headers, data := csm.server.FetchTriggers(ctx)
+				csm.PushState(ctx, State{
+					Mode:         Browse,
+					TableMode:    Trigger,
+					TableHeaders: headers,
+					TableData:    data,
+				})
 			}
 
 			return nil

@@ -23,6 +23,9 @@ type AppColors struct {
 	HeaderValue     string // For header values
 	HeaderHighlight string // For highlighted header values
 	HeaderSecondary string // For secondary header text
+
+	// UI selection/row highlight
+	SelectionBandBg tcell.Color // background for full-width selection band
 }
 
 // DefaultColors returns the default color scheme
@@ -47,6 +50,9 @@ func DefaultColors() *AppColors {
 		HeaderValue:     "aqua",    // Aqua for values like "dev"
 		HeaderHighlight: "lime",    // Lime for highlighted values like CPU/MEM percentages
 		HeaderSecondary: "silver",  // Silver for secondary text
+
+		// UI selection/row highlight
+		SelectionBandBg: tcell.ColorAqua,
 	}
 }
 

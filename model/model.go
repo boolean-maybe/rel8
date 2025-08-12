@@ -38,6 +38,10 @@ type TableMode int
 const (
 	EmptyTable TableMode = iota
 	DatabaseTable
+	View
+	Procedure
+	Function
+	Trigger
 	Database
 	TableRow
 )

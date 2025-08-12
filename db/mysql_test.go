@@ -516,6 +516,337 @@ func TestMockGetServerInfo(t *testing.T) {
 	assert.Equal(t, "128.0 MB", serverInfo["innodb_buffer_pool_size"])
 }
 
+func TestFetchViews(t *testing.T) {
+	tests := []struct {
+		name            string
+		mockSetup       func(sqlmock.Sqlmock)
+		expectedHeaders []string
+		expectedCount   int
+	}{
+		{
+			name: "successful views fetch",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				rows := sqlmock.NewRows([]string{"TABLE_NAME", "TABLE_TYPE", "DEFINER", "CREATED", "LAST_ALTERED", "SECURITY_TYPE"}).
+					AddRow("active_users", "VIEW", "root@localhost", "2023-01-15 10:30:00", "2024-03-22 14:45:00", "DEFINER").
+					AddRow("sales_report", "VIEW", "admin@localhost", "2023-02-22 08:15:00", "2024-04-10 09:20:00", "INVOKER")
+				mock.ExpectQuery("SELECT TABLE_NAME").WillReturnRows(rows)
+			},
+			expectedHeaders: []string{"NAME", "TYPE", "DEFINER", "CREATED", "UPDATED", "SECURITY_TYPE"},
+			expectedCount:   2,
+		},
+		{
+			name: "query error returns empty result",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("SELECT TABLE_NAME").WillReturnError(sql.ErrConnDone)
+			},
+			expectedHeaders: []string{},
+			expectedCount:   0,
+		},
+		{
+			name: "no views found",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				rows := sqlmock.NewRows([]string{"TABLE_NAME", "TABLE_TYPE", "DEFINER", "CREATED", "LAST_ALTERED", "SECURITY_TYPE"})
+				mock.ExpectQuery("SELECT TABLE_NAME").WillReturnRows(rows)
+			},
+			expectedHeaders: []string{"NAME", "TYPE", "DEFINER", "CREATED", "UPDATED", "SECURITY_TYPE"},
+			expectedCount:   0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockDB, mock, err := sqlmock.New()
+			assert.NoError(t, err)
+			defer mockDB.Close()
+
+			tt.mockSetup(mock)
+
+			mysql := &Mysql8{Mysql{DbInstance: mockDB}}
+			ctx := context.Background()
+			headers, data := mysql.FetchViews(ctx)
+
+			assert.Equal(t, tt.expectedHeaders, headers)
+			assert.Len(t, data, tt.expectedCount)
+
+			if tt.expectedCount > 0 {
+				// Verify the first view data structure
+				if mysqlTable, ok := data[0].(MysqlTable); ok {
+					assert.NotEmpty(t, mysqlTable.Name)
+					assert.NotEmpty(t, mysqlTable.Type)
+					assert.NotEmpty(t, mysqlTable.Engine)
+					assert.NotEmpty(t, mysqlTable.Rows)
+					assert.NotEmpty(t, mysqlTable.Size)
+				} else {
+					t.Error("Expected MysqlTable type")
+				}
+			}
+
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestMockFetchViews(t *testing.T) {
+	mock := &MysqlMock{}
+	ctx := context.Background()
+
+	headers, data := mock.FetchViews(ctx)
+
+	// Verify headers
+	assert.Equal(t, []string{"NAME", "TYPE", "DEFINER", "CREATED", "UPDATED", "SECURITY_TYPE"}, headers)
+
+	// Verify we have some views
+	assert.True(t, len(data) > 0)
+
+	// Check first view
+	firstView := data[0].(MysqlTable)
+	assert.Equal(t, "active_customers", firstView.Name)
+	assert.Equal(t, "VIEW", firstView.Type)
+}
+
+func TestFetchProcedures(t *testing.T) {
+	tests := []struct {
+		name            string
+		mockSetup       func(sqlmock.Sqlmock)
+		expectedHeaders []string
+		expectedCount   int
+	}{
+		{
+			name: "successful procedures fetch",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				rows := sqlmock.NewRows([]string{"ROUTINE_NAME", "ROUTINE_TYPE", "DEFINER", "CREATED", "LAST_ALTERED", "SQL_MODE", "SECURITY_TYPE"}).
+					AddRow("add_customer", "PROCEDURE", "root@localhost", "2023-01-15 10:30:00", "2024-03-22 14:45:00", "STRICT_TRANS_TABLES", "DEFINER").
+					AddRow("update_inventory", "PROCEDURE", "admin@localhost", "2023-02-22 08:15:00", "2024-04-10 09:20:00", "STRICT_TRANS_TABLES", "INVOKER")
+				mock.ExpectQuery("SELECT ROUTINE_NAME").WillReturnRows(rows)
+			},
+			expectedHeaders: []string{"NAME", "TYPE", "DEFINER", "CREATED", "MODIFIED", "SQL_MODE", "SECURITY_TYPE"},
+			expectedCount:   2,
+		},
+		{
+			name: "query error returns empty result",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("SELECT ROUTINE_NAME").WillReturnError(sql.ErrConnDone)
+			},
+			expectedHeaders: []string{},
+			expectedCount:   0,
+		},
+		{
+			name: "no procedures found",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				rows := sqlmock.NewRows([]string{"ROUTINE_NAME", "ROUTINE_TYPE", "DEFINER", "CREATED", "LAST_ALTERED", "SQL_MODE", "SECURITY_TYPE"})
+				mock.ExpectQuery("SELECT ROUTINE_NAME").WillReturnRows(rows)
+			},
+			expectedHeaders: []string{"NAME", "TYPE", "DEFINER", "CREATED", "MODIFIED", "SQL_MODE", "SECURITY_TYPE"},
+			expectedCount:   0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockDB, mock, err := sqlmock.New()
+			assert.NoError(t, err)
+			defer mockDB.Close()
+
+			tt.mockSetup(mock)
+
+			mysql := &Mysql8{Mysql{DbInstance: mockDB}}
+			ctx := context.Background()
+			headers, data := mysql.FetchProcedures(ctx)
+
+			assert.Equal(t, tt.expectedHeaders, headers)
+			assert.Len(t, data, tt.expectedCount)
+
+			if tt.expectedCount > 0 {
+				// Verify the first procedure data structure
+				if mysqlTable, ok := data[0].(MysqlTable); ok {
+					assert.NotEmpty(t, mysqlTable.Name)
+					assert.NotEmpty(t, mysqlTable.Type)
+					assert.NotEmpty(t, mysqlTable.Engine)
+					assert.NotEmpty(t, mysqlTable.Rows)
+				} else {
+					t.Error("Expected MysqlTable type")
+				}
+			}
+
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestMockFetchProcedures(t *testing.T) {
+	mock := &MysqlMock{}
+	ctx := context.Background()
+
+	headers, data := mock.FetchProcedures(ctx)
+
+	// Verify headers
+	assert.Equal(t, []string{"NAME", "TYPE", "DEFINER", "CREATED", "MODIFIED", "SQL_MODE", "SECURITY_TYPE"}, headers)
+
+	// Verify we have some procedures
+	assert.True(t, len(data) > 0)
+
+	// Check first procedure
+	firstProc := data[0].(MysqlTable)
+	assert.Equal(t, "add_customer", firstProc.Name)
+	assert.Equal(t, "PROCEDURE", firstProc.Type)
+}
+
+func TestFetchFunctions(t *testing.T) {
+	tests := []struct {
+		name            string
+		mockSetup       func(sqlmock.Sqlmock)
+		expectedHeaders []string
+		expectedCount   int
+	}{
+		{
+			name: "successful functions fetch",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				rows := sqlmock.NewRows([]string{"ROUTINE_NAME", "ROUTINE_TYPE", "DEFINER", "CREATED", "LAST_ALTERED", "DATA_TYPE", "IS_DETERMINISTIC"}).
+					AddRow("calc_total", "FUNCTION", "root@localhost", "2023-01-15 10:30:00", "2024-03-22 14:45:00", "DECIMAL", "YES").
+					AddRow("get_customer", "FUNCTION", "admin@localhost", "2023-02-22 08:15:00", "2024-04-10 09:20:00", "VARCHAR", "NO")
+				mock.ExpectQuery("SELECT ROUTINE_NAME").WillReturnRows(rows)
+			},
+			expectedHeaders: []string{"NAME", "TYPE", "DEFINER", "CREATED", "MODIFIED", "RETURN_TYPE", "IS_DETERMINISTIC"},
+			expectedCount:   2,
+		},
+		{
+			name: "query error returns empty result",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("SELECT ROUTINE_NAME").WillReturnError(sql.ErrConnDone)
+			},
+			expectedHeaders: []string{},
+			expectedCount:   0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockDB, mock, err := sqlmock.New()
+			assert.NoError(t, err)
+			defer mockDB.Close()
+
+			tt.mockSetup(mock)
+
+			mysql := &Mysql8{Mysql{DbInstance: mockDB}}
+			ctx := context.Background()
+			headers, data := mysql.FetchFunctions(ctx)
+
+			assert.Equal(t, tt.expectedHeaders, headers)
+			assert.Len(t, data, tt.expectedCount)
+
+			if tt.expectedCount > 0 {
+				// Verify the first function data structure
+				if mysqlTable, ok := data[0].(MysqlTable); ok {
+					assert.NotEmpty(t, mysqlTable.Name)
+					assert.NotEmpty(t, mysqlTable.Type)
+					assert.NotEmpty(t, mysqlTable.Engine)
+					assert.NotEmpty(t, mysqlTable.Rows)
+				} else {
+					t.Error("Expected MysqlTable type")
+				}
+			}
+
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestMockFetchFunctions(t *testing.T) {
+	mock := &MysqlMock{}
+	ctx := context.Background()
+
+	headers, data := mock.FetchFunctions(ctx)
+
+	// Verify headers
+	assert.Equal(t, []string{"NAME", "TYPE", "DEFINER", "CREATED", "MODIFIED", "RETURN_TYPE", "IS_DETERMINISTIC"}, headers)
+
+	// Verify we have some functions
+	assert.True(t, len(data) > 0)
+
+	// Check first function
+	firstFunc := data[0].(MysqlTable)
+	assert.Equal(t, "calc_total_price", firstFunc.Name)
+	assert.Equal(t, "FUNCTION", firstFunc.Type)
+}
+
+func TestFetchTriggers(t *testing.T) {
+	tests := []struct {
+		name            string
+		mockSetup       func(sqlmock.Sqlmock)
+		expectedHeaders []string
+		expectedCount   int
+	}{
+		{
+			name: "successful triggers fetch",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				rows := sqlmock.NewRows([]string{"TRIGGER_NAME", "EVENT_MANIPULATION", "EVENT_OBJECT_TABLE", "ACTION_TIMING", "DEFINER", "CREATED"}).
+					AddRow("after_insert", "INSERT", "orders", "AFTER", "root@localhost", "2023-01-15 10:30:00").
+					AddRow("before_update", "UPDATE", "products", "BEFORE", "admin@localhost", "2023-02-22 08:15:00")
+				mock.ExpectQuery("SELECT TRIGGER_NAME").WillReturnRows(rows)
+			},
+			expectedHeaders: []string{"NAME", "EVENT", "TABLE", "TIMING", "DEFINER", "CREATED"},
+			expectedCount:   2,
+		},
+		{
+			name: "query error returns empty result",
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("SELECT TRIGGER_NAME").WillReturnError(sql.ErrConnDone)
+			},
+			expectedHeaders: []string{},
+			expectedCount:   0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockDB, mock, err := sqlmock.New()
+			assert.NoError(t, err)
+			defer mockDB.Close()
+
+			tt.mockSetup(mock)
+
+			mysql := &Mysql8{Mysql{DbInstance: mockDB}}
+			ctx := context.Background()
+			headers, data := mysql.FetchTriggers(ctx)
+
+			assert.Equal(t, tt.expectedHeaders, headers)
+			assert.Len(t, data, tt.expectedCount)
+
+			if tt.expectedCount > 0 {
+				// Verify the first trigger data structure
+				if mysqlTable, ok := data[0].(MysqlTable); ok {
+					assert.NotEmpty(t, mysqlTable.Name)
+					assert.NotEmpty(t, mysqlTable.Type)
+					assert.NotEmpty(t, mysqlTable.Engine)
+					assert.NotEmpty(t, mysqlTable.Rows)
+				} else {
+					t.Error("Expected MysqlTable type")
+				}
+			}
+
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
+func TestMockFetchTriggers(t *testing.T) {
+	mock := &MysqlMock{}
+	ctx := context.Background()
+
+	headers, data := mock.FetchTriggers(ctx)
+
+	// Verify headers
+	assert.Equal(t, []string{"NAME", "EVENT", "TABLE", "TIMING", "DEFINER", "CREATED"}, headers)
+
+	// Verify we have some triggers
+	assert.True(t, len(data) > 0)
+
+	// Check first trigger
+	firstTrigger := data[0].(MysqlTable)
+	assert.Equal(t, "after_order_insert", firstTrigger.Name)
+	assert.Equal(t, "INSERT", firstTrigger.Type)
+}
+
 func TestGetServerInfo(t *testing.T) {
 	tests := []struct {
 		name           string
