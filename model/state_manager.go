@@ -210,6 +210,23 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 		}
 	}
 
+	// If Editor mode is active, handle F5 to execute SQL
+	if csm.GetCurrentState().Mode == Editor {
+		switch ev.Event.Key() {
+		case tcell.KeyF5:
+			slog.Debug("F5 in editor mode")
+			SQL := ev.Text
+			slog.Debug("executing SQL query from editor", "query", SQL)
+			newState := csm.createStateWithSqlRows(ctx, SQL)
+			csm.PushState(ctx, newState)
+			return nil
+		default:
+			// Let editor handle other keys
+			slog.Debug("return event for editor")
+			return ev.Event
+		}
+	}
+
 	// action on row in browse
 	if csm.GetCurrentState().Mode == Browse {
 		if csm.GetCurrentState().TableMode == DatabaseTable {
@@ -254,6 +271,11 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 		case '!':
 			csm.PushState(ctx, State{
 				Mode: SQL,
+			})
+			return nil
+		case 's':
+			csm.PushState(ctx, State{
+				Mode: Editor,
 			})
 			return nil
 		default:

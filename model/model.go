@@ -29,6 +29,7 @@ const (
 	Command
 	SQL
 	Detail
+	Editor
 	QuitMode Mode = -1
 )
 

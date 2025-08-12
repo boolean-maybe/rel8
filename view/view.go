@@ -15,6 +15,7 @@ type View struct {
 	header       *Header
 	grid         *Grid
 	details      *Detail
+	editor       *Editor
 	commandBar   *CommandBar
 }
 
@@ -24,6 +25,7 @@ func NewView(stateManager *model.ContextualStateManager) *View {
 	// Create components
 	header := NewHeader()
 	details := NewEmptyDetail()
+	editor := NewEmptyEditor()
 
 	grid := NewEmptyGrid()
 
@@ -44,6 +46,7 @@ func NewView(stateManager *model.ContextualStateManager) *View {
 		header:       header,
 		grid:         grid,
 		details:      details,
+		editor:       editor,
 		commandBar:   commandBar,
 	}
 
@@ -99,6 +102,13 @@ func (v *View) OnStateTransition(transition model.StateTransition) {
 		v.flex.AddItem(WrapGrid(v.grid), 0, 1, true)
 		v.App.SetFocus(v.commandBar)
 	}
+
+	if transition.To.Mode == model.Editor {
+		v.flex.Clear()
+		v.flex.AddItem(WrapHeader(v.header), 7, 0, false)
+		v.flex.AddItem(WrapEditor(v.editor), 0, 1, true)
+		v.App.SetFocus(v.editor)
+	}
 }
 
 // Run - run event cycle
@@ -118,6 +128,10 @@ func (v *View) Run() {
 		// if in SQL mode also send command bar text (SQL query)
 		if currentState.Mode == model.SQL {
 			e.Text = v.commandBar.GetCommand()
+		}
+		// if in editor mode also send editor text
+		if currentState.Mode == model.Editor {
+			e.Text = v.editor.GetText()
 		}
 		// if in browse mode also send current row
 		if currentState.Mode == model.Browse {

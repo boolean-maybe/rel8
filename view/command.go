@@ -16,8 +16,8 @@ type CommandBar struct {
 func NewCommandBar() *CommandBar {
 	// Create command bar (initially hidden)
 	textArea := tview.NewTextArea()
-	textArea.SetBackgroundColor(tcell.ColorBlack)
-	textArea.SetBorder(true).SetBorderPadding(0, 0, 0, 0).SetBorderColor(tcell.ColorLightSkyBlue)
+	textArea.SetBackgroundColor(Colors.BackgroundDefault)
+	textArea.SetBorder(true).SetBorderPadding(0, 0, 0, 0).SetBorderColor(Colors.BorderDefault)
 
 	// Prevent backspace from erasing the "> " prompt
 	textArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {

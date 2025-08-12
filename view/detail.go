@@ -22,10 +22,10 @@ func NewDetail(text string) *Detail {
 	highlightedText := db.HighlightSQL(text)
 
 	textView.SetText(highlightedText)
-	textView.SetBackgroundColor(tcell.ColorBlack)
+	textView.SetBackgroundColor(Colors.BackgroundDefault)
 
 	// Add same border styling as table
-	textView.SetBorder(true).SetBorderPadding(0, 0, 1, 1).SetBorderColor(tcell.ColorLightSkyBlue)
+	textView.SetBorder(true).SetBorderPadding(0, 0, 1, 1).SetBorderColor(Colors.BorderDefault)
 	textView.SetBorderAttributes(tcell.AttrNone)
 
 	return &Detail{TextView: textView}

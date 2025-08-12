@@ -34,8 +34,8 @@ func (g *Grid) Populate(headers []string, data []db.TableData) {
 	// add headers
 	for col, header := range headers {
 		cell := tview.NewTableCell(header).
-			SetTextColor(tcell.ColorWhite).
-			SetBackgroundColor(tcell.ColorBlack).
+			SetTextColor(Colors.TextWhite).
+			SetBackgroundColor(Colors.BackgroundDefault).
 			SetAttributes(tcell.AttrBold)
 
 		// Set expansion for header
@@ -49,7 +49,7 @@ func (g *Grid) Populate(headers []string, data []db.TableData) {
 		// extract fields of db.TableData runtime type, using headers for map data
 		fields := getFieldsWithHeaders(item, headers)
 		for col, field := range fields {
-			cell := tview.NewTableCell(field).SetTextColor(tcell.ColorLightSkyBlue)
+			cell := tview.NewTableCell(field).SetTextColor(Colors.TextLightSkyBlue)
 			setExpansion(col, cell)
 			g.SetCell(row+1, col, cell)
 		}
@@ -82,14 +82,14 @@ func configureTable() *tview.Table {
 		SetSelectable(true, false)
 
 	// Add single line border around the entire table
-	table.SetBorder(true).SetBorderPadding(0, 0, 1, 1).SetBorderColor(tcell.ColorLightSkyBlue)
+	table.SetBorder(true).SetBorderPadding(0, 0, 1, 1).SetBorderColor(Colors.BorderDefault)
 	table.SetBorderAttributes(tcell.AttrNone)
 
 	// Fix header row and make table scrollable
 	table.SetFixed(1, 0)
 	table.SetSelectedStyle(tcell.StyleDefault.
-		Background(tcell.ColorAqua).
-		Foreground(tcell.ColorBlack))
+		Background(Colors.TextAqua).
+		Foreground(Colors.TextBlack))
 
 	// Set selection changed handler to prevent selecting header row
 	table.SetSelectionChangedFunc(func(row, column int) {
