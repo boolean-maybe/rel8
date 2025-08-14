@@ -188,16 +188,17 @@ func (m *Mysql8) FetchTables(ctx context.Context) ([]string, []TableData) {
 
 	// Query to get table information from information_schema
 	query := `
-		SELECT 
-			TABLE_NAME,
-			TABLE_TYPE,
-			IFNULL(ENGINE, 'N/A') as ENGINE,
-			IFNULL(TABLE_ROWS, 0) as TABLE_ROWS,
-			IFNULL(ROUND(((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024), 2), 0) as SIZE_MB
-		FROM information_schema.TABLES 
-		WHERE TABLE_SCHEMA = DATABASE()
-		ORDER BY TABLE_NAME
-	`
+        SELECT 
+            TABLE_NAME,
+            TABLE_TYPE,
+            IFNULL(ENGINE, 'N/A') as ENGINE,
+            IFNULL(TABLE_ROWS, 0) as TABLE_ROWS,
+            IFNULL(ROUND(((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024), 2), 0) as SIZE_MB
+        FROM information_schema.TABLES 
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_TYPE = 'BASE TABLE'
+        ORDER BY TABLE_NAME
+    `
 
 	slog.Debug("fetchTables: Executing query", "query", query)
 	rows, err := m.Db().QueryContext(ctx, query)
@@ -543,18 +544,23 @@ func (m *Mysql8) FetchViews(ctx context.Context) ([]string, []TableData) {
 	views := []MysqlTable{}
 
 	// Query to get view information from information_schema
+	// Use TABLES for create/update times and join with VIEWS for definer/security
 	query := `
-		SELECT 
-			TABLE_NAME,
-			'VIEW' as TABLE_TYPE,
-			DEFINER,
-			CREATED,
-			LAST_ALTERED,
-			SECURITY_TYPE
-		FROM information_schema.VIEWS
-		WHERE TABLE_SCHEMA = DATABASE()
-		ORDER BY TABLE_NAME
-	`
+        SELECT
+            t.TABLE_NAME,
+            'VIEW' as TABLE_TYPE,
+            v.DEFINER,
+            DATE_FORMAT(t.CREATE_TIME, '%Y-%m-%d %H:%i:%s') as CREATED,
+            DATE_FORMAT(t.UPDATE_TIME, '%Y-%m-%d %H:%i:%s') as UPDATED,
+            v.SECURITY_TYPE
+        FROM information_schema.TABLES t
+        JOIN information_schema.VIEWS v
+          ON v.TABLE_SCHEMA = t.TABLE_SCHEMA
+         AND v.TABLE_NAME   = t.TABLE_NAME
+        WHERE t.TABLE_SCHEMA = DATABASE()
+          AND t.TABLE_TYPE   = 'VIEW'
+        ORDER BY t.TABLE_NAME
+    `
 
 	slog.Debug("FetchViews: Executing query", "query", query)
 	rows, err := m.Db().QueryContext(ctx, query)
@@ -577,14 +583,18 @@ func (m *Mysql8) FetchViews(ctx context.Context) ([]string, []TableData) {
 		}
 
 		// Create a table-like structure for views
+		// use pre-formatted timestamp strings directly; avoid slicing to prevent panics on empty values
+		// build "created / updated" only adding second part if present
+		rowsText := created.String
+		if s := strings.TrimSpace(updated.String); s != "" {
+			rowsText = fmt.Sprintf("%s / %s", rowsText, s)
+		}
 		view := MysqlTable{
 			Name:   name.String,
 			Type:   viewType.String,
 			Engine: definer.String,
-			Rows: fmt.Sprintf("%s / %s",
-				created.String[:10]+" "+created.String[11:19],
-				updated.String[:10]+" "+updated.String[11:19]),
-			Size: securityType.String,
+			Rows:   rowsText,
+			Size:   securityType.String,
 		}
 
 		slog.Debug("FetchViews: Processed view", "name", view.Name)

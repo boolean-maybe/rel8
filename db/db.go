@@ -23,13 +23,19 @@ type DatabaseServer interface {
 }
 
 func Connect(connStr string, useMock bool) DatabaseServer {
-	if useMock {
-		slog.Info("Using mock database server")
-		return &MysqlMock{Mysql{DbInstance: nil}}
-	}
-
 	driver := determineDriver(connStr)
 	slog.Info("Database driver detected", "driver", driver)
+
+	if useMock {
+		slog.Info("Using mock database server", "driver", driver)
+		// Return appropriate mock based on driver type
+		switch driver {
+		case "pgx":
+			return &PostgresMock{Postgres{DbInstance: nil}}
+		default:
+			return &MysqlMock{Mysql{DbInstance: nil}}
+		}
+	}
 
 	db, err := sql.Open(driver, connStr)
 	if err != nil {
@@ -44,7 +50,13 @@ func Connect(connStr string, useMock bool) DatabaseServer {
 		slog.Info("Successfully connected to database")
 	}
 
-	return &Mysql8{Mysql{DbInstance: db}}
+	// Return appropriate server implementation based on driver
+	switch driver {
+	case "pgx":
+		return &Postgres{DbInstance: db}
+	default:
+		return &Mysql8{Mysql{DbInstance: db}}
+	}
 }
 
 func determineDriver(connStr string) string {

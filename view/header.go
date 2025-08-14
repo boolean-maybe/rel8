@@ -87,7 +87,18 @@ func (h *Header) UpdateServerInfo() {
 	host := getValueWithDefault(serverInfo, "host", "Unknown")
 	port := getValueWithDefault(serverInfo, "port", "Unknown")
 	maxConn := getValueWithDefault(serverInfo, "max_connections", "Unknown")
-	bufferPool := getValueWithDefault(serverInfo, "innodb_buffer_pool_size", "Unknown")
+
+	// Check for PostgreSQL shared_buffers or MySQL innodb_buffer_pool_size
+	bufferPool := getValueWithDefault(serverInfo, "shared_buffers", "Unknown")
+	if bufferPool == "Unknown" {
+		bufferPool = getValueWithDefault(serverInfo, "innodb_buffer_pool_size", "Unknown")
+	}
+
+	// Determine the buffer label based on the type of buffer setting found
+	bufferLabel := "Buffer Pool"
+	if _, hasSharedBuffers := serverInfo["shared_buffers"]; hasSharedBuffers {
+		bufferLabel = "Shared Buffers"
+	}
 
 	headerText := ` [` + Colors.HeaderLabel + `]Server: [` + Colors.HeaderValue + `]` + version + `[-]
  [` + Colors.HeaderLabel + `]User: [` + Colors.HeaderValue + `]` + user + `[-]
@@ -95,7 +106,7 @@ func (h *Header) UpdateServerInfo() {
  [` + Colors.HeaderLabel + `]Host: [` + Colors.HeaderValue + `]` + host + `[-]
  [` + Colors.HeaderLabel + `]Port: [` + Colors.HeaderValue + `]` + port + `[-]
  [` + Colors.HeaderLabel + `]Max Conn: [` + Colors.HeaderValue + `]` + maxConn + `[-]
- [` + Colors.HeaderLabel + `]Buffer Pool: [` + Colors.HeaderValue + `]` + bufferPool + `[-]`
+ [` + Colors.HeaderLabel + `]` + bufferLabel + `: [` + Colors.HeaderValue + `]` + bufferPool + `[-]`
 
 	h.leftHeader.SetText(headerText)
 }

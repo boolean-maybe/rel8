@@ -526,10 +526,10 @@ func TestFetchViews(t *testing.T) {
 		{
 			name: "successful views fetch",
 			mockSetup: func(mock sqlmock.Sqlmock) {
-				rows := sqlmock.NewRows([]string{"TABLE_NAME", "TABLE_TYPE", "DEFINER", "CREATED", "LAST_ALTERED", "SECURITY_TYPE"}).
+				rows := sqlmock.NewRows([]string{"TABLE_NAME", "TABLE_TYPE", "DEFINER", "CREATED", "UPDATED", "SECURITY_TYPE"}).
 					AddRow("active_users", "VIEW", "root@localhost", "2023-01-15 10:30:00", "2024-03-22 14:45:00", "DEFINER").
 					AddRow("sales_report", "VIEW", "admin@localhost", "2023-02-22 08:15:00", "2024-04-10 09:20:00", "INVOKER")
-				mock.ExpectQuery("SELECT TABLE_NAME").WillReturnRows(rows)
+				mock.ExpectQuery("(?s)SELECT\\s+t\\.TABLE_NAME,\\s*'VIEW'\\s+as\\s+TABLE_TYPE,\\s*v\\.DEFINER,.*FROM\\s+information_schema\\.TABLES\\s+t\\s+JOIN\\s+information_schema\\.VIEWS").WillReturnRows(rows)
 			},
 			expectedHeaders: []string{"NAME", "TYPE", "DEFINER", "CREATED", "UPDATED", "SECURITY_TYPE"},
 			expectedCount:   2,
@@ -537,7 +537,7 @@ func TestFetchViews(t *testing.T) {
 		{
 			name: "query error returns empty result",
 			mockSetup: func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("SELECT TABLE_NAME").WillReturnError(sql.ErrConnDone)
+				mock.ExpectQuery("(?s)SELECT\\s+t\\.TABLE_NAME,\\s*'VIEW'\\s+as\\s+TABLE_TYPE,\\s*v\\.DEFINER,.*FROM\\s+information_schema\\.TABLES\\s+t\\s+JOIN\\s+information_schema\\.VIEWS").WillReturnError(sql.ErrConnDone)
 			},
 			expectedHeaders: []string{},
 			expectedCount:   0,
@@ -545,8 +545,8 @@ func TestFetchViews(t *testing.T) {
 		{
 			name: "no views found",
 			mockSetup: func(mock sqlmock.Sqlmock) {
-				rows := sqlmock.NewRows([]string{"TABLE_NAME", "TABLE_TYPE", "DEFINER", "CREATED", "LAST_ALTERED", "SECURITY_TYPE"})
-				mock.ExpectQuery("SELECT TABLE_NAME").WillReturnRows(rows)
+				rows := sqlmock.NewRows([]string{"TABLE_NAME", "TABLE_TYPE", "DEFINER", "CREATED", "UPDATED", "SECURITY_TYPE"})
+				mock.ExpectQuery("(?s)SELECT\\s+t\\.TABLE_NAME,\\s*'VIEW'\\s+as\\s+TABLE_TYPE,\\s*v\\.DEFINER,.*FROM\\s+information_schema\\.TABLES\\s+t\\s+JOIN\\s+information_schema\\.VIEWS").WillReturnRows(rows)
 			},
 			expectedHeaders: []string{"NAME", "TYPE", "DEFINER", "CREATED", "UPDATED", "SECURITY_TYPE"},
 			expectedCount:   0,
