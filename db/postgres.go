@@ -3,6 +3,8 @@ package db
 import (
 	"context"
 	"database/sql"
+	"log/slog"
+	"strings"
 )
 
 type Postgres struct {
@@ -27,19 +29,152 @@ func (p *Postgres) Db() *sql.DB {
 	return p.DbInstance
 }
 
-// GetServerInfo returns PostgreSQL mock server information for header display
+// GetServerInfo retrieves PostgreSQL server information using SQL queries
 func (p *Postgres) GetServerInfo(ctx context.Context) map[string]string {
-	// Return mock data that resembles PostgreSQL server information
+	slog.Debug("GetServerInfo: Retrieving PostgreSQL server information")
 	serverInfo := make(map[string]string)
 
-	serverInfo["version"] = "PostgreSQL 15.4"
-	serverInfo["user"] = "postgres"
-	serverInfo["database"] = "testdb"
-	serverInfo["host"] = "localhost"
-	serverInfo["port"] = "5432"
-	serverInfo["max_connections"] = "100"
-	serverInfo["shared_buffers"] = "128 MB"
+	if p.DbInstance == nil {
+		// Return mock data when no database connection
+		slog.Debug("GetServerInfo: No database connection, returning mock data")
+		serverInfo["version"] = "PostgreSQL 15.4-mock"
+		serverInfo["user"] = "postgres"
+		serverInfo["database"] = "testdb"
+		serverInfo["host"] = "localhost"
+		serverInfo["port"] = "5432"
+		serverInfo["max_connections"] = "100"
+		serverInfo["shared_buffers"] = "128 MB"
+		return serverInfo
+	}
 
+	// Get server version
+	versionQuery := "SELECT version()"
+	versionRows, err := p.DbInstance.QueryContext(ctx, versionQuery)
+	if err == nil {
+		defer versionRows.Close()
+		if versionRows.Next() {
+			var version string
+			if err := versionRows.Scan(&version); err == nil {
+				// Extract PostgreSQL version from full version string
+				// Example: "PostgreSQL 15.4 on x86_64-pc-linux-gnu, compiled by gcc..."
+				if strings.HasPrefix(version, "PostgreSQL ") {
+					parts := strings.Split(version, " ")
+					if len(parts) >= 2 {
+						serverInfo["version"] = "PostgreSQL " + parts[1]
+					} else {
+						serverInfo["version"] = version
+					}
+				} else {
+					serverInfo["version"] = version
+				}
+			}
+		}
+	} else {
+		slog.Error("GetServerInfo: Failed to get version", "error", err)
+		serverInfo["version"] = "Unknown"
+	}
+
+	// Get current user
+	userQuery := "SELECT current_user"
+	userRows, err := p.DbInstance.QueryContext(ctx, userQuery)
+	if err == nil {
+		defer userRows.Close()
+		if userRows.Next() {
+			var user string
+			if err := userRows.Scan(&user); err == nil {
+				serverInfo["user"] = user
+			}
+		}
+	} else {
+		slog.Error("GetServerInfo: Failed to get current user", "error", err)
+		serverInfo["user"] = "Unknown"
+	}
+
+	// Get current database
+	dbQuery := "SELECT current_database()"
+	dbRows, err := p.DbInstance.QueryContext(ctx, dbQuery)
+	if err == nil {
+		defer dbRows.Close()
+		if dbRows.Next() {
+			var database string
+			if err := dbRows.Scan(&database); err == nil {
+				serverInfo["database"] = database
+			}
+		}
+	} else {
+		slog.Error("GetServerInfo: Failed to get current database", "error", err)
+		serverInfo["database"] = "Unknown"
+	}
+
+	// Get server host (may be NULL for Unix domain socket connections)
+	hostQuery := "SELECT inet_server_addr()"
+	hostRows, err := p.DbInstance.QueryContext(ctx, hostQuery)
+	if err == nil {
+		defer hostRows.Close()
+		if hostRows.Next() {
+			var host sql.NullString
+			if err := hostRows.Scan(&host); err == nil {
+				if host.Valid {
+					serverInfo["host"] = host.String
+				} else {
+					serverInfo["host"] = "localhost" // Unix domain socket
+				}
+			}
+		}
+	} else {
+		slog.Error("GetServerInfo: Failed to get server host", "error", err)
+		serverInfo["host"] = "Unknown"
+	}
+
+	// Get server port
+	portQuery := "SHOW port"
+	portRows, err := p.DbInstance.QueryContext(ctx, portQuery)
+	if err == nil {
+		defer portRows.Close()
+		if portRows.Next() {
+			var port string
+			if err := portRows.Scan(&port); err == nil {
+				serverInfo["port"] = port
+			}
+		}
+	} else {
+		slog.Error("GetServerInfo: Failed to get server port", "error", err)
+		serverInfo["port"] = "Unknown"
+	}
+
+	// Get max_connections
+	maxConnQuery := "SHOW max_connections"
+	maxConnRows, err := p.DbInstance.QueryContext(ctx, maxConnQuery)
+	if err == nil {
+		defer maxConnRows.Close()
+		if maxConnRows.Next() {
+			var maxConn string
+			if err := maxConnRows.Scan(&maxConn); err == nil {
+				serverInfo["max_connections"] = maxConn
+			}
+		}
+	} else {
+		slog.Error("GetServerInfo: Failed to get max_connections", "error", err)
+		serverInfo["max_connections"] = "Unknown"
+	}
+
+	// Get shared_buffers (PostgreSQL equivalent of MySQL's innodb_buffer_pool_size)
+	sharedBuffersQuery := "SHOW shared_buffers"
+	sharedBuffersRows, err := p.DbInstance.QueryContext(ctx, sharedBuffersQuery)
+	if err == nil {
+		defer sharedBuffersRows.Close()
+		if sharedBuffersRows.Next() {
+			var sharedBuffers string
+			if err := sharedBuffersRows.Scan(&sharedBuffers); err == nil {
+				serverInfo["shared_buffers"] = sharedBuffers
+			}
+		}
+	} else {
+		slog.Error("GetServerInfo: Failed to get shared_buffers", "error", err)
+		serverInfo["shared_buffers"] = "Unknown"
+	}
+
+	slog.Debug("GetServerInfo: Retrieved PostgreSQL server information", "info", serverInfo)
 	return serverInfo
 }
 

@@ -8,7 +8,7 @@
 - Interactive terminal interface using tview
 - **Hierarchical tree view** for database structure navigation (server → databases → categories → items)
 - SQL syntax highlighting and execution
-- MySQL/PostgreSQL server information display (version, user, host, port, database, max_connections, buffer pool size)
+- **Real-time server information display** for MySQL and PostgreSQL (version, user, host, port, database, max_connections, buffer pool/shared buffers)
 - **Manual keyboard navigation** with arrow keys and tree expansion/collapse
 - Demo mode with scripted interactions
 - Mock data mode for development/testing
@@ -109,7 +109,7 @@ const (
 - Multi-database support with unified interface
 - **Tree-specific database methods**: `FetchTablesForDatabase`, `FetchViewsForDatabase`, `FetchProceduresForDatabase`, `FetchFunctionsForDatabase`, `FetchTriggersForDatabase`
 - Automatic driver detection from connection strings
-- MySQL/PostgreSQL server information extraction (version, user, configuration)
+- **Real SQL-based server information extraction** for MySQL and PostgreSQL with comprehensive error handling
 - Mock data support for development with comprehensive test data
 - SQL syntax highlighting with 50+ keywords
 
@@ -175,7 +175,46 @@ const (
 4. **Table Data Display** - Click on table items to show table data with pagination in grid view
 5. **Table Description** - Show CREATE TABLE statements in detail view
 6. **SQL Execution** - Execute custom SQL queries in editor mode
-7. **Server Information** - Display MySQL/PostgreSQL server details in the header
+7. **Real-time Server Information** - Display live MySQL/PostgreSQL server details (version, user, database, host, port, max_connections, buffer settings) in the header via SQL queries
+
+## PostgreSQL Server Information Implementation
+
+### Real SQL Query Implementation (`db/postgres.go`)
+The PostgreSQL server information header displays **real-time data** fetched via SQL queries:
+
+```sql
+-- Version information
+SELECT version()
+
+-- Current user
+SELECT current_user
+
+-- Current database
+SELECT current_database()
+
+-- Server host IP (NULL for Unix sockets)
+SELECT inet_server_addr()
+
+-- Server configuration
+SHOW port
+SHOW max_connections
+SHOW shared_buffers
+```
+
+### Implementation Details
+- **Graceful fallback**: Returns mock data when `DbInstance == nil` (no database connection)
+- **Error handling**: Each query has proper error handling with structured logging
+- **Unix socket support**: Handles NULL `inet_server_addr()` by defaulting to "localhost"
+- **Version parsing**: Extracts clean version number from PostgreSQL's full version string
+- **Connection modes**: 
+  - Real connection (default): Shows live data from SQL queries
+  - Mock mode (`-m`/`--mock` flags): Shows predefined mock data for development/testing
+
+### Testing Coverage
+- **Mock connection testing**: Validates fallback behavior when no database connection
+- **Real connection simulation**: Uses sqlmock to test actual SQL query execution
+- **Unix socket handling**: Tests NULL host handling for domain socket connections
+- **Error scenarios**: Tests query failures and graceful degradation
 
 ## Development Patterns
 
@@ -210,7 +249,7 @@ rel8/view    : 53+ tests - PASS (includes comprehensive tree navigation tests)
 
 ### Key Test Areas
 - **State Management:** Event handling and transitions
-- **Database Operations:** CRUD operations with error scenarios for MySQL and PostgreSQL
+- **Database Operations:** CRUD operations with error scenarios for MySQL and PostgreSQL including real SQL query testing
 - **Tree Navigation:** Complete testing of tree traversal algorithms, node finding, and navigation methods
 - **UI Components:** Alignment, formatting, and interaction
 - **SQL Highlighting:** Keyword recognition and syntax coloring
@@ -221,11 +260,11 @@ rel8/view    : 53+ tests - PASS (includes comprehensive tree navigation tests)
 ### Adding New Database Support
 1. Implement driver detection logic in `db/db.go:DetermineDriver`
 2. Add connection string parsing
-3. Create database-specific implementation file (e.g., `postgres.go`)
+3. Create database-specific implementation file (e.g., `postgres.go`) with real SQL query implementation for `GetServerInfo`
 4. Implement tree-specific methods: `FetchTablesForDatabase`, `FetchViewsForDatabase`, `FetchProceduresForDatabase`, `FetchFunctionsForDatabase`, `FetchTriggersForDatabase`
 5. Create corresponding mock implementation for testing
 6. Handle database-specific SQL variations
-7. Add comprehensive tests including tree navigation scenarios
+7. Add comprehensive tests including server info SQL queries, tree navigation scenarios, and mock fallback behavior
 
 ### Adding New UI Components
 1. Create component in `view/` package
@@ -303,4 +342,4 @@ rel8/view    : 53+ tests - PASS (includes comprehensive tree navigation tests)
 
 ---
 *Generated on 2025-08-12 by Claude Code for comprehensive repository understanding and AI-assisted development.*  
-*Updated on 2025-08-16 with tree view implementation, PostgreSQL support, and advanced navigation features.*
+*Updated on 2025-08-16 with tree view implementation, PostgreSQL support with real SQL query-based server info, and advanced navigation features.*
