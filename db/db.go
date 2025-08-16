@@ -20,6 +20,13 @@ type DatabaseServer interface {
 	FetchFunctions(ctx context.Context) ([]string, []TableData)
 	FetchTriggers(ctx context.Context) ([]string, []TableData)
 	GetServerInfo(ctx context.Context) map[string]string
+	
+	// Database-specific methods for tree view
+	FetchTablesForDatabase(ctx context.Context, databaseName string) ([]string, []TableData)
+	FetchViewsForDatabase(ctx context.Context, databaseName string) ([]string, []TableData)
+	FetchProceduresForDatabase(ctx context.Context, databaseName string) ([]string, []TableData)
+	FetchFunctionsForDatabase(ctx context.Context, databaseName string) ([]string, []TableData)
+	FetchTriggersForDatabase(ctx context.Context, databaseName string) ([]string, []TableData)
 }
 
 func Connect(connStr string, useMock bool) DatabaseServer {

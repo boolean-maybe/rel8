@@ -6,8 +6,10 @@
 **Key Features:**
 - Multi-database support (MySQL, PostgreSQL, SQLite)
 - Interactive terminal interface using tview
+- **Hierarchical tree view** for database structure navigation (server → databases → categories → items)
 - SQL syntax highlighting and execution
-- MySQL server information display (version, user, host, port, database, max_connections, buffer pool size)
+- MySQL/PostgreSQL server information display (version, user, host, port, database, max_connections, buffer pool size)
+- **Manual keyboard navigation** with arrow keys and tree expansion/collapse
 - Demo mode with scripted interactions
 - Mock data mode for development/testing
 - State-driven architecture with contextual navigation
@@ -22,7 +24,8 @@ rel8/
       model.go           # Core state definitions and modes
       state_manager.go   # Event handling and state transitions
    view/                   # UI components and presentation layer
-      view.go            # Main view coordinator
+      view.go            # Main view coordinator with tree navigation logic
+      tree.go            # Hierarchical tree view component for database structure
       grid.go            # Table display component
       detail.go          # Detail view component
       editor.go          # SQL editor component
@@ -31,9 +34,11 @@ rel8/
       command.go         # Command input component
       color.go           # Centralized color theming
    db/                     # Database abstraction layer
-      db.go              # Core database interface
+      db.go              # Core database interface with tree-specific methods
       mysql.go           # MySQL-specific implementation
       mysql8.go          # MySQL 8+ compatibility
+      postgres.go        # PostgreSQL-specific implementation
+      postgres_mock.go   # PostgreSQL mock data for development/testing
       sql.go             # SQL syntax highlighting
    config/                 # Configuration and initialization 
        init.go            # CLI parsing and setup
@@ -41,9 +46,9 @@ rel8/
 ```
 
 ### File Statistics
-- **Total Go files:** 33
-- **Total lines of code:** 5,669
-- **Test coverage:** 100% pass rate (113 tests across all packages)
+- **Total Go files:** 36
+- **Total lines of code:** ~6,500
+- **Test coverage:** 100% pass rate (53+ tests in view package, 160+ tests total across all packages)
 
 ## Technology Stack
 
@@ -87,43 +92,58 @@ const (
 - Maintains state history stack (20 levels deep)
 - Provides callback system for UI updates
 
-#### 2. View System (`view/view.go`)
+#### 2. Tree View System (`view/tree.go`)
+- **Hierarchical database structure** navigation (server → databases → categories → items)
+- **Manual keyboard navigation** with custom tree traversal algorithms
+- **Database-specific node types**: server, database, category (Tables/Views/Procedures/Functions/Triggers), items
+- **Lazy loading** of category items when expanded
+- **Multi-database support** with PostgreSQL and MySQL implementations
+
+#### 3. View System (`view/view.go`)
 - Coordinates UI components based on current state
-- Handles mode-specific rendering
+- **Advanced navigation methods**: `findNextNode`, `findPrevNode`, `findNextSibling`, `findPrevSibling`, `findParent`, `findLastDescendant`
+- Handles mode-specific rendering (tree view as default, grid view for table data)
 - Manages component focus and input routing
 
-#### 3. Database Abstraction (`db/db.go`)
+#### 4. Database Abstraction (`db/db.go`)
 - Multi-database support with unified interface
+- **Tree-specific database methods**: `FetchTablesForDatabase`, `FetchViewsForDatabase`, `FetchProceduresForDatabase`, `FetchFunctionsForDatabase`, `FetchTriggersForDatabase`
 - Automatic driver detection from connection strings
-- MySQL server information extraction (version, user, configuration)
-- Mock data support for development
+- MySQL/PostgreSQL server information extraction (version, user, configuration)
+- Mock data support for development with comprehensive test data
 - SQL syntax highlighting with 50+ keywords
 
-#### 4. Color Theming (`view/color.go`)
+#### 5. Color Theming (`view/color.go`)
 - Centralized color management system
 - Configurable color schemes
 - Support for both tcell.Color and tview color tags
-- Selection band color exposed as `Colors.SelectionBandBg`
+- **Tree-specific colors**: `TreeRootColor`, `TreeDatabaseColor`, `TreeCategoryColor`, `TreeItemColor`
+- Selection highlighting integrated with tview's native system
 
-## Row Selection, Full-Width Highlighting, and Column Expansion
+## Tree View Navigation and Grid Selection
 
-### Selection behavior
-- Table configured for rows-only selection via `SetSelectable(true, false)` (`view/grid.go`).
-- Initial selection starts at first data row; selection is restored on state transitions.
+### Tree View Navigation (`view/tree.go`)
+- **Hierarchical structure**: Server → Databases → Categories (Tables/Views/Procedures/Functions/Triggers) → Items
+- **Manual keyboard navigation**: Custom tree traversal algorithms handle arrow key navigation
+- **Node expansion**: Enter/Space keys expand/collapse tree nodes with lazy loading
+- **Selection highlighting**: Uses tview's native selection system with custom colors
+- **Database tracking**: Automatically updates current database context when database nodes are selected
 
-### Per-cell selection styling
-- `RefreshSelectionHighlight()` styles the selected row's cells (foreground/background) and resets others.
-- For the selected row only, missing trailing cells up to `headerCount` are synthesized so the last logical column exists and receives highlight.
+### Grid Selection and Highlighting (`view/grid.go`)
+- Table configured for rows-only selection via `SetSelectable(true, false)`
+- Initial selection starts at first data row; selection is restored on state transitions
+- `RefreshSelectionHighlight()` styles the selected row's cells (foreground/background) and resets others
+- For the selected row only, missing trailing cells up to `headerCount` are synthesized so the last logical column exists and receives highlight
 
-### Full-width selection band
-- A full-width band is painted after draw to cover any right-side gap beyond the last cell.
-- `Grid.DrawSelectionBand(screen)` sets only the background for the selected screen row, preserving runes and foreground colors.
-- `Grid.AttachSelectionBand(app, shouldDraw)` chains into the app's after-draw and paints the band when `shouldDraw()` is true. We enable this in Browse, Command, and SQL modes.
-- Row alignment accounts for scroll via `getRowOffsetUnsafe()`.
+### Full-width selection band (Grid only)
+- A full-width band is painted after draw to cover any right-side gap beyond the last cell
+- `Grid.DrawSelectionBand(screen)` sets only the background for the selected screen row, preserving runes and foreground colors
+- `Grid.AttachSelectionBand(app, shouldDraw)` chains into the app's after-draw and paints the band when `shouldDraw()` is true. We enable this in Browse, Command, and SQL modes
+- Row alignment accounts for scroll via `getRowOffsetUnsafe()`
 
-### Column expansion
-- Default expansion is uniform (`SetExpansion(1)`) for predictable layout.
-- After populate, `StretchLastColumn()` increases expansion on the last existing column to better absorb leftover width, complementing the band.
+### Column expansion (Grid only)
+- Default expansion is uniform (`SetExpansion(1)`) for predictable layout
+- After populate, `StretchLastColumn()` increases expansion on the last existing column to better absorb leftover width, complementing the band
 
 ## Key Workflows
 
@@ -142,20 +162,28 @@ const (
 - **`Escape` key**  Return to previous state
 - **`Ctrl+C` key**  Quit application
 
+### Tree Navigation (Browse Mode)
+- **`Arrow Up/Down`** Navigate between visible tree nodes in hierarchy order
+- **`Enter/Space`** Expand/collapse tree nodes (databases show categories, categories load and show items)
+- **Tree traversal** follows proper depth-first order with sibling navigation
+- **Lazy loading** fetches table/view/procedure data only when category is expanded
+
 ### Database Operations
-1. **Browse Databases** - List available databases
-2. **Browse Tables** - Show tables in selected database
-3. **Table Rows** - Display table data with pagination
-4. **Table Description** - Show CREATE TABLE statements
-5. **SQL Execution** - Execute custom SQL queries
-6. **Server Information** - Display MySQL server details in the header
+1. **Tree Navigation** - Browse hierarchical database structure (server → databases → categories → items)
+2. **Database Expansion** - Expand databases to show categories: Tables, Views, Procedures, Functions, Triggers
+3. **Category Expansion** - Expand categories to show individual items with lazy loading
+4. **Table Data Display** - Click on table items to show table data with pagination in grid view
+5. **Table Description** - Show CREATE TABLE statements in detail view
+6. **SQL Execution** - Execute custom SQL queries in editor mode
+7. **Server Information** - Display MySQL/PostgreSQL server details in the header
 
 ## Development Patterns
 
 ### Testing Strategy
 - **Unit Tests:** Comprehensive coverage for all packages
-- **Mock Testing:** Database operations use sqlmock for isolation
+- **Mock Testing:** Database operations use sqlmock for isolation with comprehensive mock data for MySQL and PostgreSQL
 - **Integration Tests:** State transitions and component interactions
+- **Tree Navigation Tests:** Comprehensive testing of tree traversal algorithms and navigation methods
 - **Alignment Tests:** UI component spacing and formatting verification
 
 ### Error Handling
@@ -173,34 +201,39 @@ const (
 
 ### Test Coverage
 ```
-rel8         : 113 tests - PASS
+rel8         : All tests - PASS
 rel8/config  : 4 tests   - PASS  
-rel8/db      : 12 tests  - PASS
-rel8/model   : 15 tests  - PASS
-rel8/view    : 29 tests  - PASS
+rel8/db      : 12+ tests - PASS (includes PostgreSQL mock tests)
+rel8/model   : 15+ tests - PASS
+rel8/view    : 53+ tests - PASS (includes comprehensive tree navigation tests)
 ```
 
 ### Key Test Areas
 - **State Management:** Event handling and transitions
-- **Database Operations:** CRUD operations with error scenarios
+- **Database Operations:** CRUD operations with error scenarios for MySQL and PostgreSQL
+- **Tree Navigation:** Complete testing of tree traversal algorithms, node finding, and navigation methods
 - **UI Components:** Alignment, formatting, and interaction
 - **SQL Highlighting:** Keyword recognition and syntax coloring
-- **Color System:** Theme application and consistency
+- **Color System:** Theme application and consistency including tree-specific colors
 
 ## Common Development Tasks
 
 ### Adding New Database Support
 1. Implement driver detection logic in `db/db.go:DetermineDriver`
 2. Add connection string parsing
-3. Handle database-specific SQL variations
-4. Add comprehensive tests
+3. Create database-specific implementation file (e.g., `postgres.go`)
+4. Implement tree-specific methods: `FetchTablesForDatabase`, `FetchViewsForDatabase`, `FetchProceduresForDatabase`, `FetchFunctionsForDatabase`, `FetchTriggersForDatabase`
+5. Create corresponding mock implementation for testing
+6. Handle database-specific SQL variations
+7. Add comprehensive tests including tree navigation scenarios
 
 ### Adding New UI Components
 1. Create component in `view/` package
 2. Follow existing patterns (border, padding, color usage)
-3. Use centralized colors from `view/color.go`
-4. Add comprehensive alignment tests
-5. Integrate into main view coordinator
+3. Use centralized colors from `view/color.go` (add new colors if needed: `TreeXXXColor` pattern)
+4. Consider navigation requirements and input handling
+5. Add comprehensive alignment tests and navigation tests if applicable
+6. Integrate into main view coordinator with proper state transitions
 
 ### Adding New Key Bindings
 1. Update key handling in `model/state_manager.go`
@@ -250,18 +283,24 @@ rel8/view    : 29 tests  - PASS
 5. **Documentation:** Update relevant documentation for significant changes
 
 ### Areas Requiring Special Attention
-- **State Transitions:** Complex interaction between modes
+- **Tree Navigation:** Complex tree traversal algorithms and manual keyboard navigation
+- **State Transitions:** Complex interaction between modes (tree view vs. grid view)
 - **UI Alignment:** Precise formatting requirements for terminal display
-- **Database Compatibility:** Multi-database support considerations
-- **Color Theming:** Centralized system affects entire application
-- **Testing:** Comprehensive coverage expectations
+- **Database Compatibility:** Multi-database support considerations (MySQL vs. PostgreSQL vs. SQLite)
+- **Color Theming:** Centralized system affects entire application including tree-specific colors
+- **Input Handling:** Proper event flow between global handlers and tree navigation
+- **Testing:** Comprehensive coverage expectations including tree navigation scenarios
 
 ### Common Pitfalls to Avoid
-- **Direct Color Usage:** Always use `Colors` global instance
-- **State Mutation:** Follow proper state transition patterns
-- **Test Isolation:** Ensure tests don't affect each other
+- **Direct Color Usage:** Always use `Colors` global instance, especially for tree colors
+- **Navigation Conflicts:** Avoid conflicting input handlers between global and tree navigation
+- **State Mutation:** Follow proper state transition patterns (tree view vs. grid view modes)
+- **Tree Traversal:** Use existing navigation helper methods rather than reimplementing tree walking
+- **Test Isolation:** Ensure tests don't affect each other, especially tree navigation tests
+- **Mock Data:** Use appropriate mock implementations (MySQL vs. PostgreSQL) in tests
 - **UI Spacing:** Maintain consistent alignment and padding
-- **Error Handling:** Provide graceful degradation paths
+- **Error Handling:** Provide graceful degradation paths to mock data
 
 ---
-*Generated on 2025-08-12 by Claude Code for comprehensive repository understanding and AI-assisted development.*
+*Generated on 2025-08-12 by Claude Code for comprehensive repository understanding and AI-assisted development.*  
+*Updated on 2025-08-16 with tree view implementation, PostgreSQL support, and advanced navigation features.*

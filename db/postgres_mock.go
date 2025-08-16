@@ -197,3 +197,29 @@ func (p *PostgresMock) GetServerInfo(ctx context.Context) map[string]string {
 
 	return serverInfo
 }
+
+// Database-specific methods for tree view
+func (p *PostgresMock) FetchTablesForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	slog.Debug("FetchTablesForDatabase: Starting mock PostgreSQL table fetch for database", "database", databaseName)
+	return p.FetchTables(ctx) // Return same mock data for any database
+}
+
+func (p *PostgresMock) FetchViewsForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	slog.Debug("FetchViewsForDatabase: Starting mock PostgreSQL view fetch for database", "database", databaseName)
+	return p.FetchViews(ctx) // Return same mock data for any database
+}
+
+func (p *PostgresMock) FetchProceduresForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	slog.Debug("FetchProceduresForDatabase: Starting mock PostgreSQL procedure fetch for database", "database", databaseName)
+	return p.FetchProcedures(ctx) // Return same mock data for any database
+}
+
+func (p *PostgresMock) FetchFunctionsForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	slog.Debug("FetchFunctionsForDatabase: Starting mock PostgreSQL function fetch for database", "database", databaseName)
+	return p.FetchFunctions(ctx) // Return same mock data for any database
+}
+
+func (p *PostgresMock) FetchTriggersForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	slog.Debug("FetchTriggersForDatabase: Starting mock PostgreSQL trigger fetch for database", "database", databaseName)
+	return p.FetchTriggers(ctx) // Return same mock data for any database
+}

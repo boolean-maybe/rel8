@@ -46,8 +46,17 @@ const (
 	TableRow
 )
 
+// TreeNodeInfo represents tree node information for events
+type TreeNodeInfo struct {
+	Type     string
+	Name     string
+	Parent   string
+	Database string
+}
+
 type Event struct {
-	Event *tcell.EventKey
-	Text  string
-	Row   int
+	Event    *tcell.EventKey
+	Text     string
+	Row      int
+	TreeNode *TreeNodeInfo
 }

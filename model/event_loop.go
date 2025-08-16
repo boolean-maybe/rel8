@@ -139,9 +139,29 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 		}
 	}
 
-	// action on row in browse
+	// action on row in browse or tree selection
 	if csm.GetCurrentState().Mode == Browse {
-		if csm.GetCurrentState().TableMode == DatabaseTable {
+		// Handle tree node selection
+		if ev.TreeNode != nil {
+			switch ev.Event.Key() {
+			case tcell.KeyEnter:
+				newState := csm.createStateWithTreeNodeAction(ctx, ev.TreeNode)
+				if newState != nil {
+					csm.PushState(ctx, *newState)
+				}
+				return nil
+			case tcell.KeyRune:
+				switch ev.Event.Rune() {
+				case 'q':
+					newState := csm.createStateWithTreeNodeAction(ctx, ev.TreeNode)
+					if newState != nil {
+						csm.PushState(ctx, *newState)
+					}
+					return nil
+				}
+			}
+		} else if csm.GetCurrentState().TableMode == DatabaseTable {
+			// Handle grid row selection (existing logic)
 			switch ev.Event.Key() {
 			case tcell.KeyEnter:
 				// First update current state to save selection
@@ -251,6 +271,43 @@ func (csm *ContextualStateManager) createStateWithTableDescr(ctx context.Context
 	newState.DetailText = csm.server.FetchTableDescr(ctx, tableName)
 
 	return newState
+}
+
+// createStateWithTreeNodeAction handles tree node selection and creates appropriate state
+func (csm *ContextualStateManager) createStateWithTreeNodeAction(ctx context.Context, treeNode *TreeNodeInfo) *State {
+	slog.Debug("Tree node action", "type", treeNode.Type, "name", treeNode.Name)
+	
+	switch treeNode.Type {
+	case "item":
+		// Selected an item (table, view, procedure, etc.)
+		if treeNode.Parent == "Tables" {
+			// Selected a table - show table rows
+			headers, data := csm.server.FetchTableRows(ctx, treeNode.Name)
+			return &State{
+				Mode:         Browse,
+				TableMode:    TableRow,
+				TableHeaders: headers,
+				TableData:    data,
+			}
+		} else if treeNode.Parent == "Views" {
+			// Selected a view - show view description
+			description := csm.server.FetchTableDescr(ctx, treeNode.Name)
+			return &State{
+				Mode:       Detail,
+				DetailText: description,
+			}
+		} else if treeNode.Parent == "Procedures" || treeNode.Parent == "Functions" || treeNode.Parent == "Triggers" {
+			// Selected a procedure/function/trigger - show description
+			description := csm.server.FetchTableDescr(ctx, treeNode.Name)
+			return &State{
+				Mode:       Detail,
+				DetailText: description,
+			}
+		}
+	}
+	
+	// For other node types or unsupported actions, don't change state
+	return nil
 }
 
 func (csm *ContextualStateManager) updateCurrentStateSelection(selectedIndex int) {

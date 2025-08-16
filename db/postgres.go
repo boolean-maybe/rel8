@@ -123,3 +123,24 @@ func (p *Postgres) FetchTriggers(ctx context.Context) ([]string, []TableData) {
 	}
 	return headers, triggers
 }
+
+// Database-specific methods for tree view
+func (p *Postgres) FetchTablesForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	return p.FetchTables(ctx) // Return same mock data for any database
+}
+
+func (p *Postgres) FetchViewsForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	return p.FetchViews(ctx) // Return same mock data for any database
+}
+
+func (p *Postgres) FetchProceduresForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	return p.FetchProcedures(ctx) // Return same mock data for any database
+}
+
+func (p *Postgres) FetchFunctionsForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	return p.FetchFunctions(ctx) // Return same mock data for any database
+}
+
+func (p *Postgres) FetchTriggersForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	return p.FetchTriggers(ctx) // Return same mock data for any database
+}

@@ -228,3 +228,29 @@ func (m *MysqlMock) GetServerInfo(ctx context.Context) map[string]string {
 
 	return serverInfo
 }
+
+// Database-specific methods for tree view
+func (m *MysqlMock) FetchTablesForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	slog.Debug("FetchTablesForDatabase: Starting mock table fetch for database", "database", databaseName)
+	return m.FetchTables(ctx) // Return same mock data for any database
+}
+
+func (m *MysqlMock) FetchViewsForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	slog.Debug("FetchViewsForDatabase: Starting mock view fetch for database", "database", databaseName)
+	return m.FetchViews(ctx) // Return same mock data for any database
+}
+
+func (m *MysqlMock) FetchProceduresForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	slog.Debug("FetchProceduresForDatabase: Starting mock procedure fetch for database", "database", databaseName)
+	return m.FetchProcedures(ctx) // Return same mock data for any database
+}
+
+func (m *MysqlMock) FetchFunctionsForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	slog.Debug("FetchFunctionsForDatabase: Starting mock function fetch for database", "database", databaseName)
+	return m.FetchFunctions(ctx) // Return same mock data for any database
+}
+
+func (m *MysqlMock) FetchTriggersForDatabase(ctx context.Context, databaseName string) ([]string, []TableData) {
+	slog.Debug("FetchTriggersForDatabase: Starting mock trigger fetch for database", "database", databaseName)
+	return m.FetchTriggers(ctx) // Return same mock data for any database
+}

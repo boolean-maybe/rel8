@@ -26,6 +26,13 @@ type AppColors struct {
 
 	// UI selection/row highlight
 	SelectionBandBg tcell.Color // background for full-width selection band
+	
+	// Tree view colors
+	TreeRootColor     tcell.Color // Root node color
+	TreeDatabaseColor tcell.Color // Database nodes color
+	TreeCategoryColor tcell.Color // Category nodes color (Tables, Views, etc.)
+	TreeItemColor     tcell.Color // Item nodes color (individual tables, views, etc.)
+	TitleDefault      tcell.Color // Title color for components
 }
 
 // DefaultColors returns the default color scheme
@@ -53,6 +60,13 @@ func DefaultColors() *AppColors {
 
 		// UI selection/row highlight
 		SelectionBandBg: tcell.ColorAqua,
+		
+		// Tree view colors
+		TreeRootColor:     tcell.ColorYellow,      // Yellow for server root
+		TreeDatabaseColor: tcell.ColorLightBlue,   // Light blue for databases
+		TreeCategoryColor: tcell.ColorLightGreen,  // Light green for categories
+		TreeItemColor:     tcell.ColorWhite,       // White for items
+		TitleDefault:      tcell.ColorLightSkyBlue, // Light sky blue for titles
 	}
 }
 
