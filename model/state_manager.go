@@ -2,7 +2,6 @@ package model
 
 import (
 	"context"
-	"fmt"
 	"rel8/db"
 	"sync"
 )
@@ -24,9 +23,9 @@ type ContextualStateManager struct {
 	server        db.DatabaseServer
 }
 
-func NewContextualStateManager(server db.DatabaseServer, initialState State, maxHistory int) *ContextualStateManager {
+func NewContextualStateManager(server db.DatabaseServer, maxHistory int) *ContextualStateManager {
 	return &ContextualStateManager{
-		stateStack:    []State{initialState},
+		stateStack:    []State{},
 		callbacks:     make([]StateChangeCallback, 0),
 		syncCallbacks: make([]StateChangeCallback, 0),
 		maxHistory:    maxHistory,
@@ -56,7 +55,13 @@ func (csm *ContextualStateManager) PushState(ctx context.Context, newState State
 	default:
 	}
 
-	oldState := csm.stateStack[len(csm.stateStack)-1]
+	var oldState State
+	if len(csm.stateStack) == 0 {
+		oldState = newState
+	} else {
+		oldState = csm.stateStack[len(csm.stateStack)-1]
+	}
+
 	csm.stateStack = append(csm.stateStack, newState)
 
 	// Limit history size
@@ -65,7 +70,7 @@ func (csm *ContextualStateManager) PushState(ctx context.Context, newState State
 	}
 
 	// Notify callbacks
-	transition := StateTransition{From: oldState, To: newState}
+	transition := StateTransition{From: oldState, To: newState, IsPop: false}
 
 	// Call synchronous callbacks first (like UI updates)
 	for _, callback := range csm.syncCallbacks {
@@ -86,12 +91,14 @@ func (csm *ContextualStateManager) PopState(ctx context.Context) (State, error) 
 
 	select {
 	case <-ctx.Done():
-		return Initial, ctx.Err()
+		return nil, ctx.Err()
 	default:
 	}
 
-	if len(csm.stateStack) <= 1 {
-		return Initial, fmt.Errorf("cannot pop the last state")
+	if len(csm.stateStack) == 1 {
+		currentState := csm.stateStack[len(csm.stateStack)-1]
+		return currentState, nil
+		//todo need to call callbacks??
 	}
 
 	currentState := csm.stateStack[len(csm.stateStack)-1]
@@ -99,7 +106,7 @@ func (csm *ContextualStateManager) PopState(ctx context.Context) (State, error) 
 	previousState := csm.stateStack[len(csm.stateStack)-1]
 
 	// Notify callbacks
-	transition := StateTransition{From: currentState, To: previousState}
+	transition := StateTransition{From: currentState, To: previousState, IsPop: true}
 
 	// Call synchronous callbacks first (like UI updates)
 	for _, callback := range csm.syncCallbacks {

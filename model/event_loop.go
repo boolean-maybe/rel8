@@ -9,18 +9,35 @@ import (
 )
 
 func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
-
-	currentState := csm.GetCurrentState()
-	// assume no transition unless done
-	noChange := StateTransition{From: currentState, To: currentState}
-
 	// Create context with 5-second timeout for database operations
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	if ev.EventType == Init {
+		// initially show database tables
+		headers, data := csm.server.FetchTables(ctx)
+		serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
+
+		csm.PushState(ctx, &BrowseState{
+			class:      DatabaseTable,
+			HeaderInfo: &serverInfo,
+			TableInfo: &TableInfo{
+				TableHeaders:      headers,
+				TableData:         data,
+				SelectedDataIndex: 0,
+			},
+		})
+
+		return nil
+	}
+
+	currentState := csm.GetCurrentState()
+	// assume no transition unless done
+	noChange := StateTransition{From: currentState, To: currentState, IsPop: false}
+
 	// Handle Ctrl-C from any mode to quit immediately
 	if ev.Event.Key() == tcell.KeyCtrlC {
-		csm.PushState(ctx, Quit)
+		csm.PushState(ctx, QuitState)
 		return nil
 	}
 
@@ -39,54 +56,90 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 			// Process the command
 			switch command {
 			case "q", "quit":
-				csm.PushState(ctx, Quit)
+				csm.PushState(ctx, QuitState)
 
 			case "table":
 				headers, data := csm.server.FetchTables(ctx)
+				serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
+
 				csm.PushState(ctx, &BrowseState{
-					class:        DatabaseTable,
-					tableHeaders: headers,
-					tableData:    data,
+					class:      DatabaseTable,
+					HeaderInfo: &serverInfo,
+					TableInfo: &TableInfo{
+						TableHeaders:      headers,
+						TableData:         data,
+						SelectedDataIndex: 0,
+					},
 				})
 
 			case "db", "database":
 				headers, data := csm.server.FetchDatabases(ctx)
+				serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
+
 				csm.PushState(ctx, &BrowseState{
-					class:        Database,
-					tableHeaders: headers,
-					tableData:    data,
+					class:      Database,
+					HeaderInfo: &serverInfo,
+					TableInfo: &TableInfo{
+						TableHeaders:      headers,
+						TableData:         data,
+						SelectedDataIndex: 0,
+					},
 				})
 
 			case "view", "views":
 				headers, data := csm.server.FetchViews(ctx)
+				serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
+
 				csm.PushState(ctx, &BrowseState{
-					class:        View,
-					tableHeaders: headers,
-					tableData:    data,
+					class:      View,
+					HeaderInfo: &serverInfo,
+					TableInfo: &TableInfo{
+						TableHeaders:      headers,
+						TableData:         data,
+						SelectedDataIndex: 0,
+					},
 				})
 
 			case "procedure", "procedures", "proc", "procs":
 				headers, data := csm.server.FetchProcedures(ctx)
+				serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
+
 				csm.PushState(ctx, &BrowseState{
-					class:        Procedure,
-					tableHeaders: headers,
-					tableData:    data,
+					class:      Procedure,
+					HeaderInfo: &serverInfo,
+					TableInfo: &TableInfo{
+						TableHeaders:      headers,
+						TableData:         data,
+						SelectedDataIndex: 0,
+					},
 				})
 
 			case "function", "functions", "func", "funcs":
 				headers, data := csm.server.FetchFunctions(ctx)
+				serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
+
 				csm.PushState(ctx, &BrowseState{
-					class:        Function,
-					tableHeaders: headers,
-					tableData:    data,
+					class:      Function,
+					HeaderInfo: &serverInfo,
+					TableInfo: &TableInfo{
+						TableHeaders:      headers,
+						TableData:         data,
+						SelectedDataIndex: 0,
+					},
 				})
 
 			case "trigger", "triggers":
 				headers, data := csm.server.FetchTriggers(ctx)
+				serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
+
 				csm.PushState(ctx, &BrowseState{
-					class:        Trigger,
-					tableHeaders: headers,
-					tableData:    data,
+					class:      Trigger,
+					HeaderInfo: &serverInfo,
+					TableInfo: &TableInfo{
+						TableHeaders:      headers,
+						TableData:         data,
+						SelectedDataIndex: 0,
+					},
 				})
 			}
 
@@ -173,9 +226,15 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 func (csm *ContextualStateManager) createStateWithSqlRows(ctx context.Context, SQL string) State {
 	// Fetch SQL rows using the extracted table name
 	headers, data := csm.server.FetchSqlRows(ctx, SQL)
+	serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
+
 	return &BrowseState{
-		class:        TableRow,
-		tableHeaders: headers,
-		tableData:    data,
+		class:      TableRow,
+		HeaderInfo: &serverInfo,
+		TableInfo: &TableInfo{
+			TableHeaders:      headers,
+			TableData:         data,
+			SelectedDataIndex: 0,
+		},
 	}
 }

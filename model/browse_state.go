@@ -1,12 +1,9 @@
 package model
 
-import "rel8/db"
-
 type BrowseState struct {
-	class             Class
-	tableHeaders      []string
-	tableData         []db.TableData
-	selectedDataIndex int
+	class      Class
+	TableInfo  *TableInfo
+	HeaderInfo *HeaderInfo
 }
 
 func (b *BrowseState) GetMode() Mode {
@@ -15,10 +12,9 @@ func (b *BrowseState) GetMode() Mode {
 
 func (b *BrowseState) GetData() interface{} {
 	return struct {
-		TableHeaders      []string
-		TableData         []db.TableData
-		SelectedDataIndex int
-	}{b.tableHeaders, b.tableData, b.selectedDataIndex}
+		TableInfo  *TableInfo
+		HeaderInfo *HeaderInfo
+	}{b.TableInfo, b.HeaderInfo}
 }
 
 func (b *BrowseState) GetAction() []Action {

@@ -47,13 +47,28 @@ const (
 	TableRow
 )
 
-var Initial = &StateAdapter{kind: Empty}
-var Quit = &StateAdapter{kind: QuitKind}
+var QuitState = &StateAdapter{kind: QuitKind}
 
 type Event struct {
-	Event *tcell.EventKey
-	Text  string
-	Row   int
+	EventType EventType
+	Event     *tcell.EventKey
+	Text      string
+	Row       int
+}
+
+type EventType int
+
+const (
+	Init EventType = iota
+	Quit
+)
+
+var InitEvent = &Event{
+	EventType: Init,
+}
+
+var QuitEvent = &Event{
+	EventType: Init,
 }
 
 type StateAdapter struct {

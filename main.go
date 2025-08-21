@@ -17,9 +17,8 @@ func main() {
 	connectString, useMock, _ := config.Configure()
 	server := db.Connect(connectString, useMock)
 
-	stateManager := model.NewContextualStateManager(server, model.Initial, 20)
+	stateManager := model.NewContextualStateManager(server, 20)
 	viewManager := view.NewViewManager(stateManager.HandleEvent, app, pages)
-	viewManager.OnStateTransition(model.StateTransition{model.Initial, model.Initial, false})
 
 	// Add a callback to notify view (synchronous to avoid race conditions)
 	stateManager.AddSyncCallback(func(transition model.StateTransition) {
@@ -31,6 +30,9 @@ func main() {
 		//todo make slog
 		//fmt.Printf("State transition: %s -> %s\n", transition.From, transition.To)
 	})
+
+	// send Init event
+	stateManager.HandleEvent(model.InitEvent)
 
 	// Handle demo mode or run normally
 	//demoMode(viewManager, demoScript)

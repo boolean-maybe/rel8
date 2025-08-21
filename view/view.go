@@ -45,7 +45,7 @@ func NewView(stateManager *model.ContextualStateManager) *View {
 
 	view := &View{
 		stateManager: stateManager,
-		model:        model.Initial,
+		model:        nil,
 		App:          app,
 		flex:         flex,
 		header:       header,

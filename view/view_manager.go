@@ -34,6 +34,23 @@ func (v *ViewManager) makeComponent(state *model.State) tview.Primitive {
 		return box
 	}
 
+	if mode.Kind == model.Browse && mode.Class == model.DatabaseTable {
+
+		result := (*state).(*model.BrowseState).GetData().(struct {
+			TableInfo  *model.TableInfo
+			HeaderInfo *model.HeaderInfo
+		})
+
+		data := result.TableInfo
+		//headerInfo := result.HeaderInfo
+		// browsing database tables
+		header := NewHeader()
+		grid := NewGrid(data.TableHeaders, data.TableData)
+
+		flex := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(header, 7, 0, false).AddItem(WrapGrid(grid), 0, 1, true)
+		return flex
+	}
+
 	// example component
 	box := tview.NewBox().SetTitle("hello world").SetBorder(true)
 	return box
@@ -88,21 +105,25 @@ func (v *ViewManager) OnStateTransition(transition model.StateTransition) {
 
 // Run - run event cycle
 func (v *ViewManager) Run() {
-	// App level input capture in addition to specific component
+	// app-level input capture that runs before component-specific handlers:
 	v.App.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyCtrlC {
+			v.App.Stop()
+		}
 		// Get current state from state manager
 		// TODO: Need access to state manager or current state
-		currentState := v.state
-
-		e := &model.Event{Event: event}
-
-		// if in command mode also send command bar text
-		if (*currentState).GetMode().Kind == model.Command {
-			//e.Text = v.commandBar.GetCommand()
-		}
-
-		//todo this is a single place that requires state manager. Replace with a function
-		return v.eventHandler(e)
+		//currentState := v.state
+		//
+		//e := &model.Event{Event: event}
+		//
+		//// if in command mode also send command bar text
+		//if (*currentState).GetMode().Kind == model.Command {
+		//	//e.Text = v.commandBar.GetCommand()
+		//}
+		//
+		////todo this is a single place that requires state manager. Replace with a function
+		//return v.eventHandler(e)
+		return event
 	})
 
 	// Run the application
