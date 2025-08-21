@@ -2,41 +2,42 @@ package model
 
 import (
 	"github.com/gdamore/tcell/v2"
-	"rel8/db"
 )
 
-type State struct {
-	Mode Mode
-	// in table mode
-	TableMode         TableMode
-	TableHeaders      []string
-	TableData         []db.TableData
-	SelectedDataIndex int
-
-	// in details mode
-	DetailText string
-
-	CommandText string
+type Action interface {
 }
 
-var Quit = &State{Mode: QuitMode} // Use special mode to identify quit state
-var Initial = &State{Mode: Browse}
+type Mode struct {
+	Kind  Kind
+	Class Class
+}
 
-type Mode int
+type State interface {
+	// GetMode state mode - part that defines the state type
+	GetMode() Mode
+	// GetData table data, headers, selected row index, details text etc.
+	GetData() interface{}
+	GetAction() []Action
+}
+
+type Kind int
 
 const (
-	Browse Mode = iota
+	Empty Kind = iota
+	Tree
+	Browse
 	Command
 	SQL
 	Detail
 	Editor
-	QuitMode Mode = -1
+	QuitKind Kind = -1
 )
 
-type TableMode int
+type Class int
 
 const (
-	EmptyTable TableMode = iota
+	None Class = iota
+	EmptyTable
 	DatabaseTable
 	View
 	Procedure
@@ -46,17 +47,27 @@ const (
 	TableRow
 )
 
-// TreeNodeInfo represents tree node information for events
-type TreeNodeInfo struct {
-	Type     string
-	Name     string
-	Parent   string
-	Database string
-}
+var Initial = &StateAdapter{kind: Empty}
+var Quit = &StateAdapter{kind: QuitKind}
 
 type Event struct {
-	Event    *tcell.EventKey
-	Text     string
-	Row      int
-	TreeNode *TreeNodeInfo
+	Event *tcell.EventKey
+	Text  string
+	Row   int
+}
+
+type StateAdapter struct {
+	kind Kind
+}
+
+func (s *StateAdapter) GetMode() Mode {
+	return Mode{Kind: s.kind, Class: None}
+}
+
+func (s *StateAdapter) GetData() interface{} {
+	return nil
+}
+
+func (s *StateAdapter) GetAction() []Action {
+	return []Action{}
 }

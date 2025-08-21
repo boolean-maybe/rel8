@@ -5,19 +5,25 @@ import (
 	"rel8/db"
 	"rel8/model"
 	"rel8/view"
+
+	"github.com/rivo/tview"
 )
 
 func main() {
-	connectString, useMock, demoScript := config.Configure()
+	app := tview.NewApplication()
+	pages := tview.NewPages()
+
+	//connectString, useMock, demoScript := config.Configure()
+	connectString, useMock, _ := config.Configure()
 	server := db.Connect(connectString, useMock)
 
-	stateManager := model.NewContextualStateManager(server, *model.Initial, 20)
-	view := view.NewView(stateManager)
-	view.OnStateTransition(model.StateTransition{*model.Initial, *model.Initial})
+	stateManager := model.NewContextualStateManager(server, model.Initial, 20)
+	viewManager := view.NewViewManager(stateManager.HandleEvent, app, pages)
+	viewManager.OnStateTransition(model.StateTransition{model.Initial, model.Initial, false})
 
 	// Add a callback to notify view (synchronous to avoid race conditions)
 	stateManager.AddSyncCallback(func(transition model.StateTransition) {
-		view.OnStateTransition(transition)
+		viewManager.OnStateTransition(transition)
 	})
 
 	// Add a callback to log state changes (async is fine for logging)
@@ -27,8 +33,8 @@ func main() {
 	})
 
 	// Handle demo mode or run normally
-	demoMode(view, demoScript)
+	//demoMode(viewManager, demoScript)
 
 	// Not demo mode, run normally
-	view.Run()
+	viewManager.Run()
 }

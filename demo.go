@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/gdamore/tcell/v2"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -10,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 func loadDemoScript(scriptPath string) (string, error) {
@@ -70,7 +71,7 @@ func clearTerminal() {
 	fmt.Print("\033c") // Reset terminal
 }
 
-func runDemo(v *view.View, commandString string) {
+func runDemo(v *view.ViewManager, commandString string) {
 	// Start the view in a goroutine
 	done := make(chan bool, 1)
 
@@ -144,7 +145,7 @@ func runDemo(v *view.View, commandString string) {
 	clearTerminal()
 }
 
-func demoMode(view *view.View, demoScript string) {
+func demoMode(view *view.ViewManager, demoScript string) {
 	if demoScript != "" {
 		script, err := loadDemoScript(demoScript)
 		if err != nil {

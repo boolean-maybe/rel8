@@ -8,8 +8,9 @@ import (
 )
 
 type StateTransition struct {
-	From State
-	To   State
+	From  State
+	To    State
+	IsPop bool
 }
 
 type StateChangeCallback func(transition StateTransition)
@@ -85,12 +86,12 @@ func (csm *ContextualStateManager) PopState(ctx context.Context) (State, error) 
 
 	select {
 	case <-ctx.Done():
-		return *Initial, ctx.Err()
+		return Initial, ctx.Err()
 	default:
 	}
 
 	if len(csm.stateStack) <= 1 {
-		return *Initial, fmt.Errorf("cannot pop the last state")
+		return Initial, fmt.Errorf("cannot pop the last state")
 	}
 
 	currentState := csm.stateStack[len(csm.stateStack)-1]

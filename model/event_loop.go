@@ -2,11 +2,10 @@ package model
 
 import (
 	"context"
-	"errors"
-	"github.com/gdamore/tcell/v2"
 	"log/slog"
-	"rel8/db"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
@@ -21,7 +20,7 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 
 	// Handle Ctrl-C from any mode to quit immediately
 	if ev.Event.Key() == tcell.KeyCtrlC {
-		csm.PushState(ctx, *Quit)
+		csm.PushState(ctx, Quit)
 		return nil
 	}
 
@@ -32,7 +31,7 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 	}
 
 	// If command bar is visible, handle only Enter else return event
-	if csm.GetCurrentState().Mode == Command {
+	if csm.GetCurrentState().GetMode().Kind == Command {
 		switch ev.Event.Key() {
 		case tcell.KeyEnter:
 			slog.Debug("enter in command mode")
@@ -40,60 +39,54 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 			// Process the command
 			switch command {
 			case "q", "quit":
-				csm.PushState(ctx, *Quit)
+				csm.PushState(ctx, Quit)
 
 			case "table":
 				headers, data := csm.server.FetchTables(ctx)
-				csm.PushState(ctx, State{
-					Mode:         Browse,
-					TableMode:    DatabaseTable,
-					TableHeaders: headers,
-					TableData:    data,
+				csm.PushState(ctx, &BrowseState{
+					class:        DatabaseTable,
+					tableHeaders: headers,
+					tableData:    data,
 				})
 
 			case "db", "database":
 				headers, data := csm.server.FetchDatabases(ctx)
-				csm.PushState(ctx, State{
-					Mode:         Browse,
-					TableMode:    Database,
-					TableHeaders: headers,
-					TableData:    data,
+				csm.PushState(ctx, &BrowseState{
+					class:        Database,
+					tableHeaders: headers,
+					tableData:    data,
 				})
 
 			case "view", "views":
 				headers, data := csm.server.FetchViews(ctx)
-				csm.PushState(ctx, State{
-					Mode:         Browse,
-					TableMode:    View,
-					TableHeaders: headers,
-					TableData:    data,
+				csm.PushState(ctx, &BrowseState{
+					class:        View,
+					tableHeaders: headers,
+					tableData:    data,
 				})
 
 			case "procedure", "procedures", "proc", "procs":
 				headers, data := csm.server.FetchProcedures(ctx)
-				csm.PushState(ctx, State{
-					Mode:         Browse,
-					TableMode:    Procedure,
-					TableHeaders: headers,
-					TableData:    data,
+				csm.PushState(ctx, &BrowseState{
+					class:        Procedure,
+					tableHeaders: headers,
+					tableData:    data,
 				})
 
 			case "function", "functions", "func", "funcs":
 				headers, data := csm.server.FetchFunctions(ctx)
-				csm.PushState(ctx, State{
-					Mode:         Browse,
-					TableMode:    Function,
-					TableHeaders: headers,
-					TableData:    data,
+				csm.PushState(ctx, &BrowseState{
+					class:        Function,
+					tableHeaders: headers,
+					tableData:    data,
 				})
 
 			case "trigger", "triggers":
 				headers, data := csm.server.FetchTriggers(ctx)
-				csm.PushState(ctx, State{
-					Mode:         Browse,
-					TableMode:    Trigger,
-					TableHeaders: headers,
-					TableData:    data,
+				csm.PushState(ctx, &BrowseState{
+					class:        Trigger,
+					tableHeaders: headers,
+					tableData:    data,
 				})
 			}
 
@@ -106,7 +99,7 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 	}
 
 	// If SQL mode is active, handle SQL commands on Enter else return event
-	if csm.GetCurrentState().Mode == SQL {
+	if csm.GetCurrentState().GetMode().Kind == SQL {
 		switch ev.Event.Key() {
 		case tcell.KeyEnter:
 			slog.Debug("enter in SQL mode")
@@ -123,7 +116,7 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 	}
 
 	// If Editor mode is active, handle F5 to execute SQL
-	if csm.GetCurrentState().Mode == Editor {
+	if csm.GetCurrentState().GetMode().Kind == Editor {
 		switch ev.Event.Key() {
 		case tcell.KeyF5:
 			slog.Debug("F5 in editor mode")
@@ -140,55 +133,8 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 	}
 
 	// action on row in browse or tree selection
-	if csm.GetCurrentState().Mode == Browse {
+	if csm.GetCurrentState().GetMode().Kind == Browse {
 		// Handle tree node selection
-		if ev.TreeNode != nil {
-			switch ev.Event.Key() {
-			case tcell.KeyEnter:
-				newState := csm.createStateWithTreeNodeAction(ctx, ev.TreeNode)
-				if newState != nil {
-					csm.PushState(ctx, *newState)
-				}
-				return nil
-			case tcell.KeyRune:
-				switch ev.Event.Rune() {
-				case 'q':
-					newState := csm.createStateWithTreeNodeAction(ctx, ev.TreeNode)
-					if newState != nil {
-						csm.PushState(ctx, *newState)
-					}
-					return nil
-				}
-			}
-		} else if csm.GetCurrentState().TableMode == DatabaseTable {
-			// Handle grid row selection (existing logic)
-			switch ev.Event.Key() {
-			case tcell.KeyEnter:
-				// First update current state to save selection
-				// to preserve row selection when returning
-				csm.updateCurrentStateSelection(ev.Row - 1)
-				newState := csm.createStateWithTableRows(ctx, ev)
-				csm.PushState(ctx, newState)
-				return nil
-			case tcell.KeyRune:
-				switch ev.Event.Rune() {
-				case 'q':
-					// First update current state to save selection
-					// to preserve row selection when returning
-					csm.updateCurrentStateSelection(ev.Row - 1)
-					newState := csm.createStateWithTableRows(ctx, ev)
-					csm.PushState(ctx, newState)
-					return nil
-				case 'd':
-					// First update current state to save selection
-					// to preserve row selection when returning
-					csm.updateCurrentStateSelection(ev.Row - 1)
-					newState := csm.createStateWithTableDescr(ctx, ev)
-					csm.PushState(ctx, newState)
-					return nil
-				}
-			}
-		}
 	}
 
 	// Normal key bindings when command bar is not visible
@@ -196,19 +142,15 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 	case tcell.KeyRune:
 		switch ev.Event.Rune() {
 		case ':':
-			csm.PushState(ctx, State{
-				Mode: Command,
-			})
+			csm.PushState(ctx, &CommandState{})
 			return nil
 		case '!':
-			csm.PushState(ctx, State{
-				Mode: SQL,
-			})
+			csm.PushState(ctx, &SqlState{})
 			return nil
 		case 's':
-			csm.PushState(ctx, State{
-				Mode: Editor,
-			})
+			//csm.PushState(ctx, &EditorState{
+			//	Mode: Editor,
+			//})
 			return nil
 		default:
 			// Let other rune keys pass through to the table
@@ -228,105 +170,12 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 	}
 }
 
-func (csm *ContextualStateManager) createStateWithTableRows(ctx context.Context, ev *Event) State {
-	slog.Debug("row", "row", ev.Row)
-
-	// this creates a shallow copy
-	newState := csm.GetCurrentState()
-
-	newState.SelectedDataIndex = ev.Row - 1
-	tableName, _ := extractNameFromSelection(csm.GetCurrentState(), ev.Row-1)
-	// Fetch table rows using the extracted table name
-	headers, data := csm.server.FetchTableRows(ctx, tableName)
-	newState.TableMode = TableRow
-	newState.TableHeaders = headers
-	newState.TableData = data
-
-	return newState
-}
-
 func (csm *ContextualStateManager) createStateWithSqlRows(ctx context.Context, SQL string) State {
-	newState := State{
-		Mode: Browse,
-	}
-
 	// Fetch SQL rows using the extracted table name
 	headers, data := csm.server.FetchSqlRows(ctx, SQL)
-	newState.TableMode = TableRow
-	newState.TableHeaders = headers
-	newState.TableData = data
-
-	return newState
-}
-
-func (csm *ContextualStateManager) createStateWithTableDescr(ctx context.Context, ev *Event) State {
-	slog.Debug("row", "row", ev.Row)
-	// this creates a shallow copy
-	newState := csm.GetCurrentState()
-
-	newState.SelectedDataIndex = ev.Row - 1
-	tableName, _ := extractNameFromSelection(csm.GetCurrentState(), ev.Row-1)
-	// Fetch table description using the extracted table name
-	newState.Mode = Detail
-	newState.DetailText = csm.server.FetchTableDescr(ctx, tableName)
-
-	return newState
-}
-
-// createStateWithTreeNodeAction handles tree node selection and creates appropriate state
-func (csm *ContextualStateManager) createStateWithTreeNodeAction(ctx context.Context, treeNode *TreeNodeInfo) *State {
-	slog.Debug("Tree node action", "type", treeNode.Type, "name", treeNode.Name)
-	
-	switch treeNode.Type {
-	case "item":
-		// Selected an item (table, view, procedure, etc.)
-		if treeNode.Parent == "Tables" {
-			// Selected a table - show table rows
-			headers, data := csm.server.FetchTableRows(ctx, treeNode.Name)
-			return &State{
-				Mode:         Browse,
-				TableMode:    TableRow,
-				TableHeaders: headers,
-				TableData:    data,
-			}
-		} else if treeNode.Parent == "Views" {
-			// Selected a view - show view description
-			description := csm.server.FetchTableDescr(ctx, treeNode.Name)
-			return &State{
-				Mode:       Detail,
-				DetailText: description,
-			}
-		} else if treeNode.Parent == "Procedures" || treeNode.Parent == "Functions" || treeNode.Parent == "Triggers" {
-			// Selected a procedure/function/trigger - show description
-			description := csm.server.FetchTableDescr(ctx, treeNode.Name)
-			return &State{
-				Mode:       Detail,
-				DetailText: description,
-			}
-		}
-	}
-	
-	// For other node types or unsupported actions, don't change state
-	return nil
-}
-
-func (csm *ContextualStateManager) updateCurrentStateSelection(selectedIndex int) {
-	csm.mu.Lock()
-	defer csm.mu.Unlock()
-
-	if len(csm.stateStack) > 0 {
-		currentState := &csm.stateStack[len(csm.stateStack)-1]
-		currentState.SelectedDataIndex = selectedIndex
-	}
-}
-
-// attempt to extract object name such as table name from selected row in table data
-func extractNameFromSelection(state State, selected int) (string, error) {
-	selectedTable := state.TableData[selected]
-
-	if mysqlTable, ok := selectedTable.(db.MysqlTable); ok {
-		return mysqlTable.Name, nil
-	} else {
-		return "", errors.New("failed to cast selected row to db.MysqlTable")
+	return &BrowseState{
+		class:        TableRow,
+		tableHeaders: headers,
+		tableData:    data,
 	}
 }
