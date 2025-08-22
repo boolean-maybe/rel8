@@ -2,8 +2,9 @@ package view
 
 import (
 	"fmt"
-	"github.com/rivo/tview"
 	"strings"
+
+	"github.com/rivo/tview"
 )
 
 // KeyExplanationPair represents a key binding and its explanation
@@ -12,21 +13,21 @@ type KeyExplanationPair struct {
 	Explanation string
 }
 
-// Keys wraps a Flex with keys-specific functionality
-type Keys struct {
+// KeyHelpHeader wraps a Flex with keyHelpHeader-specific functionality
+type KeyHelpHeader struct {
 	*tview.Flex
 	column1 *tview.TextView
 	column2 *tview.TextView
 	column3 *tview.TextView
 }
 
-// NewKeys creates a new keys view with proper configuration
-func NewKeys() *Keys {
+// NewKeys creates a new keyHelpHeader view with proper configuration
+func NewKeys() *KeyHelpHeader {
 	return NewKeysWithPairs(getDefaultKeyPairs())
 }
 
-// NewKeysWithPairs creates a new keys view with the provided key/explanation pairs
-func NewKeysWithPairs(pairs []KeyExplanationPair) *Keys {
+// NewKeysWithPairs creates a new keyHelpHeader view with the provided key/explanation pairs
+func NewKeysWithPairs(pairs []KeyExplanationPair) *KeyHelpHeader {
 	// Create three columns for perfect alignment
 	column1 := tview.NewTextView().
 		SetDynamicColors(true).
@@ -52,7 +53,7 @@ func NewKeysWithPairs(pairs []KeyExplanationPair) *Keys {
 		AddItem(nil, 1, 0, false). // Small spacer
 		AddItem(column3, 0, 2, false)
 
-	keys := &Keys{
+	keys := &KeyHelpHeader{
 		Flex:    flex,
 		column1: column1,
 		column2: column2,
@@ -142,7 +143,7 @@ func distributeKeyPairs(pairs []KeyExplanationPair) ([]KeyExplanationPair, []Key
 }
 
 // SetKeyPairs updates the display with new key/explanation pairs
-func (k *Keys) SetKeyPairs(pairs []KeyExplanationPair) {
+func (k *KeyHelpHeader) SetKeyPairs(pairs []KeyExplanationPair) {
 	col1, col2, col3 := distributeKeyPairs(pairs)
 
 	col1Text := formatKeysColumn(col1)
@@ -154,14 +155,14 @@ func (k *Keys) SetKeyPairs(pairs []KeyExplanationPair) {
 	k.column3.SetText(col3Text)
 }
 
-// UpdateKeys updates the keys display (legacy method for backward compatibility)
-func (k *Keys) UpdateKeys(text string) {
+// UpdateKeys updates the keyHelpHeader display (legacy method for backward compatibility)
+func (k *KeyHelpHeader) UpdateKeys(text string) {
 	// For backward compatibility, just update column1
 	k.column1.SetText(text)
 }
 
 // UpdateColumns updates each column separately (legacy method)
-func (k *Keys) UpdateColumns(col1, col2, col3 string) {
+func (k *KeyHelpHeader) UpdateColumns(col1, col2, col3 string) {
 	k.column1.SetText(col1)
 	k.column2.SetText(col2)
 	k.column3.SetText(col3)

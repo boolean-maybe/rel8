@@ -16,14 +16,14 @@ func stripColorTags(text string) string {
 	return re.ReplaceAllString(text, "")
 }
 
-// TestKeyExplanationAlignment verifies that keys and explanations are properly aligned
+// TestKeyExplanationAlignment verifies that keyHelpHeader and explanations are properly aligned
 func TestKeyExplanationAlignment(t *testing.T) {
 	testCases := []struct {
 		name  string
 		pairs []KeyExplanationPair
 	}{
 		{
-			name: "short keys and explanations",
+			name: "short keyHelpHeader and explanations",
 			pairs: []KeyExplanationPair{
 				{"<1>", "all"},
 				{"<e>", "edit"},
@@ -31,7 +31,7 @@ func TestKeyExplanationAlignment(t *testing.T) {
 			},
 		},
 		{
-			name: "mixed length keys",
+			name: "mixed length keyHelpHeader",
 			pairs: []KeyExplanationPair{
 				{"<1>", "short"},
 				{"<ctrl-d>", "delete"},
@@ -73,7 +73,7 @@ func TestKeyExplanationAlignment(t *testing.T) {
 				t.Errorf("Expected %d lines, got %d", len(tc.pairs), len(lines))
 			}
 
-			// Extract keys and explanations from each line
+			// Extract keyHelpHeader and explanations from each line
 			var extractedKeys []string
 			var extractedExplanations []string
 
@@ -104,7 +104,7 @@ func TestKeyExplanationAlignment(t *testing.T) {
 				}
 			}
 
-			// Verify alignment by checking that all keys start at the same position (0)
+			// Verify alignment by checking that all keyHelpHeader start at the same position (0)
 			// and all explanations start at the same position (13)
 			for i, line := range lines {
 				cleanLine := stripColorTags(line)

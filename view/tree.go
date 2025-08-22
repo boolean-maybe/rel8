@@ -23,23 +23,23 @@ type TreeNode struct {
 // Tree wraps a TreeView with database-specific functionality
 type Tree struct {
 	*tview.TreeView
-	server     db.DatabaseServer
-	rootNode   *TreeNode
-	treeView   *tview.TreeView
-	nodes      map[*tview.TreeNode]*TreeNode // Map tview nodes to our nodes
-	currentDB  string
+	server    db.DatabaseServer
+	rootNode  *TreeNode
+	treeView  *tview.TreeView
+	nodes     map[*tview.TreeNode]*TreeNode // Map tview nodes to our nodes
+	currentDB string
 }
 
 // NewTree creates a new tree view
 func NewTree() *Tree {
 	treeView := tview.NewTreeView()
-	
+
 	tree := &Tree{
 		TreeView: treeView,
 		treeView: treeView,
 		nodes:    make(map[*tview.TreeNode]*TreeNode),
 	}
-	
+
 	// Configure the tree view
 	treeView.SetBackgroundColor(Colors.BackgroundDefault)
 	treeView.SetBorder(true)
@@ -48,20 +48,20 @@ func NewTree() *Tree {
 	treeView.SetTitle(" Database Explorer ")
 	treeView.SetTitleColor(Colors.TitleDefault)
 	treeView.SetTitleAlign(tview.AlignCenter)
-	
+
 	// Configure selection highlighting
 	treeView.SetGraphicsColor(Colors.SelectionBandBg)
-	
+
 	// Set the selected style to make the selection more visible
 	treeView.SetSelectedFunc(tree.onSelectionChanged)
-	
+
 	// Note: Input handling is done at the application level in view.go
 	// to allow proper coordination between global shortcuts and tree navigation
 	// treeView.SetInputCapture(tree.handleInput) // Removed to fix key handling
-	
+
 	// Set up selection change handler for database tracking
 	treeView.SetChangedFunc(tree.onSelectionChanged)
-	
+
 	// Ensure tree is focusable and shows focus
 	treeView.SetFocusFunc(func() {
 		// Tree gained focus
@@ -69,10 +69,10 @@ func NewTree() *Tree {
 	treeView.SetBlurFunc(func() {
 		// Tree lost focus
 	})
-	
+
 	// Note: Input handling is done at the application level in view.go
 	// to allow proper coordination between global shortcuts and tree navigation
-	
+
 	return tree
 }
 
@@ -81,12 +81,12 @@ func (t *Tree) onSelectionChanged(node *tview.TreeNode) {
 	if node == nil {
 		return
 	}
-	
+
 	treeNode, exists := t.nodes[node]
 	if !exists {
 		return
 	}
-	
+
 	// Update current database when a database node is selected
 	if treeNode.Type == "database" {
 		t.currentDB = treeNode.Name
@@ -97,7 +97,7 @@ func (t *Tree) onSelectionChanged(node *tview.TreeNode) {
 // handleInput handles keyboard navigation and expansion in the tree
 func (t *Tree) handleInput(event *tcell.EventKey) *tcell.EventKey {
 	currentNode := t.treeView.GetCurrentNode()
-	
+
 	switch event.Key() {
 	case tcell.KeyUp, tcell.KeyDown, tcell.KeyLeft, tcell.KeyRight:
 		// Navigation handled by tview automatically
@@ -131,8 +131,8 @@ func (t *Tree) handleInput(event *tcell.EventKey) *tcell.EventKey {
 		// Don't consume Ctrl+C - let it pass through to global handler
 		return event
 	}
-	
-	// Let other keys (arrows, etc.) pass through for normal tree navigation
+
+	// Let other keyHelpHeader (arrows, etc.) pass through for normal tree navigation
 	return event
 }
 
@@ -141,31 +141,31 @@ func (t *Tree) HandleNodeActivation(node *tview.TreeNode) {
 	if node == nil {
 		return
 	}
-	
+
 	treeNode, exists := t.nodes[node]
 	if !exists {
 		return
 	}
-	
+
 	// Tree node activated
-	
+
 	switch treeNode.Type {
 	case "server":
 		// Expand/collapse server node (shows/hides databases)
 		node.SetExpanded(!node.IsExpanded())
-		
+
 	case "database":
 		// Set current database and expand/collapse to show categories
 		t.currentDB = treeNode.Name
 		node.SetExpanded(!node.IsExpanded())
-		
+
 	case "category":
 		// Expand category and load items if not already loaded
 		if len(node.GetChildren()) == 0 {
 			t.loadCategoryItems(node, treeNode)
 		}
 		node.SetExpanded(!node.IsExpanded())
-		
+
 	case "item":
 		// For items, we don't expand but could trigger detail view
 		// This will be handled by the existing state management system
@@ -183,43 +183,43 @@ func (t *Tree) PopulateTree() {
 	if t.server == nil {
 		return
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	// Get server info for root node
 	serverInfo := t.server.GetServerInfo(ctx)
 	serverName := serverInfo["version"]
 	if serverName == "" {
 		serverName = "Database Server"
 	}
-	
+
 	// Create root node
 	t.rootNode = &TreeNode{
 		Type: "server",
 		Name: serverName,
 	}
-	
+
 	// Create root tree node
 	rootTreeNode := tview.NewTreeNode(serverName).
 		SetColor(Colors.TreeRootColor).
 		SetExpanded(true).
 		SetSelectable(true)
-	
+
 	t.nodes[rootTreeNode] = t.rootNode
 	t.treeView.SetRoot(rootTreeNode)
-	
+
 	// Populate databases
 	t.populateDatabases(ctx, rootTreeNode, t.rootNode)
-	
+
 	// Set initial selection to root node and ensure it's visible
 	t.treeView.SetCurrentNode(rootTreeNode)
-	
+
 	// Ensure root is selected and highlighted
 	if rootTreeNode != nil {
 		rootTreeNode.SetSelectable(true)
 	}
-	
+
 	// Tree populated successfully
 }
 
@@ -229,10 +229,10 @@ func (t *Tree) populateDatabases(ctx context.Context, parentTreeNode *tview.Tree
 	if len(databases) == 0 {
 		return
 	}
-	
+
 	for _, dbData := range databases {
 		var dbName string
-		
+
 		// Extract database name based on data type
 		switch db := dbData.(type) {
 		case db.MysqlDatabase:
@@ -249,11 +249,11 @@ func (t *Tree) populateDatabases(ctx context.Context, parentTreeNode *tview.Tree
 			slog.Warn("Unknown database data type", "type", fmt.Sprintf("%T", dbData))
 			continue
 		}
-		
+
 		if dbName == "" {
 			continue
 		}
-		
+
 		// Create database node
 		dbNode := &TreeNode{
 			Type:   "database",
@@ -262,16 +262,16 @@ func (t *Tree) populateDatabases(ctx context.Context, parentTreeNode *tview.Tree
 			Data:   dbData,
 		}
 		parentNode.Children = append(parentNode.Children, dbNode)
-		
+
 		// Create database tree node
 		dbTreeNode := tview.NewTreeNode(fmt.Sprintf("📁 %s", dbName)).
 			SetColor(Colors.TreeDatabaseColor).
 			SetExpanded(false).
 			SetSelectable(true)
-		
+
 		t.nodes[dbTreeNode] = dbNode
 		parentTreeNode.AddChild(dbTreeNode)
-		
+
 		// Add category nodes under database
 		t.addCategoryNodes(dbTreeNode, dbNode, dbName)
 	}
@@ -290,7 +290,7 @@ func (t *Tree) addCategoryNodes(dbTreeNode *tview.TreeNode, dbNode *TreeNode, db
 		{"Functions", "🔧", Colors.TreeCategoryColor},
 		{"Triggers", "⚡", Colors.TreeCategoryColor},
 	}
-	
+
 	for _, category := range categories {
 		categoryNode := &TreeNode{
 			Type:   "category",
@@ -299,12 +299,12 @@ func (t *Tree) addCategoryNodes(dbTreeNode *tview.TreeNode, dbNode *TreeNode, db
 			Data:   map[string]string{"database": dbName, "category": category.name},
 		}
 		dbNode.Children = append(dbNode.Children, categoryNode)
-		
+
 		categoryTreeNode := tview.NewTreeNode(fmt.Sprintf("%s %s", category.icon, category.name)).
 			SetColor(category.color).
 			SetExpanded(false).
 			SetSelectable(true)
-		
+
 		t.nodes[categoryTreeNode] = categoryNode
 		dbTreeNode.AddChild(categoryTreeNode)
 	}
@@ -315,28 +315,28 @@ func (t *Tree) loadCategoryItems(categoryTreeNode *tview.TreeNode, categoryNode 
 	if categoryNode.Data == nil {
 		return
 	}
-	
+
 	data, ok := categoryNode.Data.(map[string]string)
 	if !ok {
 		return
 	}
-	
+
 	dbName := data["database"]
 	category := data["category"]
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	var items []db.TableData
 	var icon string
-	
+
 	switch category {
 	case "Tables":
 		_, items = t.server.FetchTablesForDatabase(ctx, dbName)
 		icon = "📄"
 	case "Views":
 		_, items = t.server.FetchViewsForDatabase(ctx, dbName)
-		icon = "👁‍🗨"  
+		icon = "👁‍🗨"
 	case "Procedures":
 		_, items = t.server.FetchProceduresForDatabase(ctx, dbName)
 		icon = "⚙"
@@ -347,12 +347,12 @@ func (t *Tree) loadCategoryItems(categoryTreeNode *tview.TreeNode, categoryNode 
 		_, items = t.server.FetchTriggersForDatabase(ctx, dbName)
 		icon = "⚡"
 	}
-	
+
 	// Loading category items
-	
+
 	for _, itemData := range items {
 		var itemName string
-		
+
 		// Extract item name based on data type
 		switch item := itemData.(type) {
 		case db.MysqlTable:
@@ -369,11 +369,11 @@ func (t *Tree) loadCategoryItems(categoryTreeNode *tview.TreeNode, categoryNode 
 			slog.Warn("Unknown item data type", "type", fmt.Sprintf("%T", itemData))
 			continue
 		}
-		
+
 		if itemName == "" {
 			continue
 		}
-		
+
 		// Create item node
 		itemNode := &TreeNode{
 			Type:   "item",
@@ -382,12 +382,12 @@ func (t *Tree) loadCategoryItems(categoryTreeNode *tview.TreeNode, categoryNode 
 			Data:   itemData,
 		}
 		categoryNode.Children = append(categoryNode.Children, itemNode)
-		
+
 		// Create item tree node
 		itemTreeNode := tview.NewTreeNode(fmt.Sprintf("%s %s", icon, itemName)).
 			SetColor(Colors.TreeItemColor).
 			SetSelectable(true)
-		
+
 		t.nodes[itemTreeNode] = itemNode
 		categoryTreeNode.AddChild(itemTreeNode)
 	}
@@ -399,7 +399,7 @@ func (t *Tree) GetSelectedNode() *TreeNode {
 	if currentNode == nil {
 		return nil
 	}
-	
+
 	return t.nodes[currentNode]
 }
 
@@ -418,7 +418,7 @@ func (t *Tree) expandNode(node *tview.TreeNode) {
 	if node == nil {
 		return
 	}
-	
+
 	node.SetExpanded(true)
 	for _, child := range node.GetChildren() {
 		t.expandNode(child)
@@ -440,7 +440,7 @@ func (t *Tree) collapseNode(node *tview.TreeNode) {
 	if node == nil {
 		return
 	}
-	
+
 	node.SetExpanded(false)
 	for _, child := range node.GetChildren() {
 		t.collapseNode(child)

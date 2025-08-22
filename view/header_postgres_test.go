@@ -15,7 +15,7 @@ func TestHeaderWithPostgreSQL(t *testing.T) {
 	header.SetServer(server)
 
 	// Get the header text
-	headerText := header.leftHeader.GetText(false)
+	headerText := header.serverInfoHeader.GetText(false)
 
 	// Check that PostgreSQL-specific information is displayed
 	if !strings.Contains(headerText, "PostgreSQL 15.4-mock") {
@@ -57,7 +57,7 @@ func TestHeaderWithMySQL(t *testing.T) {
 	header.SetServer(server)
 
 	// Get the header text
-	headerText := header.leftHeader.GetText(false)
+	headerText := header.serverInfoHeader.GetText(false)
 
 	// Check that MySQL-specific information is displayed
 	if !strings.Contains(headerText, "MySQL 8.0.30-mock") {

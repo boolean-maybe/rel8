@@ -34,48 +34,5 @@ func TestHeaderUpdateServerInfo(t *testing.T) {
 
 	// We can't easily test the internal text content due to tview's private fields,
 	// but we can verify the method doesn't panic
-	assert.NotNil(t, header.leftHeader)
-}
-
-func TestHeaderSetServer(t *testing.T) {
-	header := NewHeader()
-
-	// Create a mock server
-	mockServer := &db.MysqlMock{}
-
-	// Set the server
-	assert.NotPanics(t, func() {
-		header.SetServer(mockServer)
-	})
-
-	// Verify server was set
-	assert.Equal(t, mockServer, header.server)
-}
-
-func TestGetValueWithDefault(t *testing.T) {
-	testMap := map[string]string{
-		"key1": "value1",
-		"key2": "value2",
-		"key3": "",
-	}
-
-	// Test existing key
-	assert.Equal(t, "value1", getValueWithDefault(testMap, "key1", "default"))
-
-	// Test non-existing key
-	assert.Equal(t, "default", getValueWithDefault(testMap, "nonexistent", "default"))
-
-	// Test empty value
-	assert.Equal(t, "", getValueWithDefault(testMap, "key3", "default"))
-}
-
-func TestHeaderUpdateArt(t *testing.T) {
-	header := NewHeader()
-
-	// Test updating art
-	assert.NotPanics(t, func() {
-		header.UpdateArt()
-	})
-
-	assert.NotNil(t, header.rightHeader)
+	assert.NotNil(t, header.serverInfoHeader)
 }

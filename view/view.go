@@ -11,7 +11,7 @@ type View struct {
 	model        model.State
 	App          *tview.Application
 	flex         *tview.Flex
-	header       *Header
+	header       *tview.Flex
 	tree         *Tree
 	grid         *Grid
 	details      *Detail
@@ -23,7 +23,7 @@ func NewView(stateManager *model.ContextualStateManager) *View {
 	app := tview.NewApplication()
 
 	// Create components
-	header := NewHeader()
+	header := NewHeader(nil)
 	tree := NewTree()
 	details := NewEmptyDetail()
 	editor := NewEmptyEditor()
@@ -34,14 +34,13 @@ func NewView(stateManager *model.ContextualStateManager) *View {
 	commandBar := NewCommandBar()
 
 	// Set the server in components
-	header.SetServer(stateManager.GetServer())
 	tree.SetServer(stateManager.GetServer())
 
 	// Create layout with tree as default instead of grid
 	flex := tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(WrapHeader(header), 7, 0, false). // Fixed header height with padding
-		AddItem(WrapTree(tree), 0, 1, true)       // Tree view takes remaining space
+		AddItem(header, 7, 0, false).       // Fixed header height with padding
+		AddItem(WrapTree(tree), 0, 1, true) // Tree view takes remaining space
 
 	view := &View{
 		stateManager: stateManager,

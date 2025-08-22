@@ -35,6 +35,7 @@ func (v *ViewManager) makeComponent(state *model.State) tview.Primitive {
 	}
 
 	if mode.Kind == model.Browse && mode.Class == model.DatabaseTable {
+		// browsing database tables
 
 		result := (*state).(*model.BrowseState).GetData().(struct {
 			TableInfo  *model.TableInfo
@@ -42,9 +43,8 @@ func (v *ViewManager) makeComponent(state *model.State) tview.Primitive {
 		})
 
 		data := result.TableInfo
-		//headerInfo := result.HeaderInfo
-		// browsing database tables
-		header := NewHeader()
+		headerInfo := result.HeaderInfo
+		header := NewHeader(headerInfo)
 		grid := NewGrid(data.TableHeaders, data.TableData)
 
 		flex := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(header, 7, 0, false).AddItem(WrapGrid(grid), 0, 1, true)
@@ -110,6 +110,14 @@ func (v *ViewManager) Run() {
 		if event.Key() == tcell.KeyCtrlC {
 			v.App.Stop()
 		}
+
+		// let view component handle other events
+		return event
+
+		// if events need to be forwarded to the state manager
+		// e := &model.Event{Event: event}
+		// return v.eventHandler(e)
+
 		// Get current state from state manager
 		// TODO: Need access to state manager or current state
 		//currentState := v.state
@@ -123,7 +131,6 @@ func (v *ViewManager) Run() {
 		//
 		////todo this is a single place that requires state manager. Replace with a function
 		//return v.eventHandler(e)
-		return event
 	})
 
 	// Run the application
