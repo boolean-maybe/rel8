@@ -1,5 +1,5 @@
 package model
 
-type SqlState struct {
+type FullSqlState struct {
 	Sql string
 }

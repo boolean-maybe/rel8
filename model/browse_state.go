@@ -1,22 +1,31 @@
 package model
 
+import "rel8/db"
+
+type BrowseClass int
+
+const (
+	None BrowseClass = iota
+	EmptyTable
+	DatabaseTable
+	View
+	Procedure
+	Function
+	Trigger
+	Database
+	TableRow
+)
+
+type TableInfo struct {
+	TableHeaders      []string
+	TableData         []db.TableData
+	SelectedDataIndex int
+}
+
+type HeaderInfo map[string]string
+
 type BrowseState struct {
-	class      Class
-	TableInfo  *TableInfo
-	HeaderInfo *HeaderInfo
-}
-
-func (b *BrowseState) GetMode() Mode {
-	return Mode{Kind: Browse, Class: b.class}
-}
-
-func (b *BrowseState) GetData() interface{} {
-	return struct {
-		TableInfo  *TableInfo
-		HeaderInfo *HeaderInfo
-	}{b.TableInfo, b.HeaderInfo}
-}
-
-func (b *BrowseState) GetAction() []Action {
-	return []Action{}
+	BrowseClass BrowseClass
+	TableInfo   *TableInfo
+	HeaderInfo  *HeaderInfo
 }

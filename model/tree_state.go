@@ -1,5 +1,5 @@
 package model
 
-type DetailState struct {
+type TreeState struct {
 	Text string
 }

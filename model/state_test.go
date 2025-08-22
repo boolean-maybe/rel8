@@ -317,7 +317,7 @@ func TestHandleEventSQLMode(t *testing.T) {
 			expectedMode: SQL, // Should pop but we only have one state, so stays in SQL
 		},
 		{
-			name:         "enter key processes SQL and pushes browse state", 
+			name:         "enter key processes SQL and pushes browse state",
 			key:          tcell.KeyEnter,
 			text:         "SELECT * FROM users",
 			expectedMode: Browse, // Should push new Browse state with query results
@@ -362,7 +362,7 @@ func TestHandleEventSQLMode(t *testing.T) {
 				assert.Equal(t, 1, mockCb.callCount) // Should have pushed a new state
 				assert.Equal(t, Browse, currentState.Mode)
 				assert.Equal(t, TableRow, currentState.TableMode)
-				
+
 				// Verify headers and data were set
 				assert.NotEmpty(t, currentState.TableHeaders)
 				assert.NotEmpty(t, currentState.TableData)

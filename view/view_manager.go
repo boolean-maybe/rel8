@@ -27,23 +27,14 @@ func NewViewManager(eventHandler func(ev *model.Event) *tcell.EventKey, app *tvi
 // create component out of new state
 func (v *ViewManager) makeComponent(state *model.State) tview.Primitive {
 
-	mode := (*state).GetMode()
-	if mode.Kind == model.Empty {
-		//create table
-		box := tview.NewBox().SetTitle("None").SetBorder(true)
-		return box
-	}
+	hasBrowse := (*state).HasBrowse()
+	hasCommand := (*state).HasCommand()
 
-	if mode.Kind == model.Browse && mode.Class == model.DatabaseTable {
+	if hasBrowse && !hasCommand && (*state).GetBrowseState().BrowseClass == model.DatabaseTable {
 		// browsing database tables
 
-		result := (*state).(*model.BrowseState).GetData().(struct {
-			TableInfo  *model.TableInfo
-			HeaderInfo *model.HeaderInfo
-		})
-
-		data := result.TableInfo
-		headerInfo := result.HeaderInfo
+		data := (*state).GetBrowseState().TableInfo
+		headerInfo := (*state).GetBrowseState().HeaderInfo
 		header := NewHeader(headerInfo)
 		grid := NewGrid(data.TableHeaders, data.TableData)
 
@@ -51,13 +42,53 @@ func (v *ViewManager) makeComponent(state *model.State) tview.Primitive {
 		return flex
 	}
 
+	//if mode.Kind == model.Command {
+	//	// command mode
+	//
+	//	// Create command bar (initially hidden)
+	//	commandBar := NewCommandBar()
+	//
+	//	result := (*state).(*model.BrowseState).GetData().(struct {
+	//		TableInfo  *model.TableInfo
+	//		HeaderInfo *model.HeaderInfo
+	//	})
+	//
+	//	data := result.TableInfo
+	//	headerInfo := result.HeaderInfo
+	//	header := NewHeader(headerInfo)
+	//	grid := NewGrid(data.TableHeaders, data.TableData)
+	//
+	//	flex := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(header, 7, 0, false).AddItem(WrapGrid(grid), 0, 1, true)
+	//	return flex
+	//}
+
 	// example component
-	box := tview.NewBox().SetTitle("hello world").SetBorder(true)
+	box := tview.NewBox().SetTitle("None").SetBorder(true)
 	return box
 }
 
 // create input capture function for new state
 func (v *ViewManager) makeInputCapture(state *model.State) func(event *tcell.EventKey) *tcell.EventKey {
+
+	hasBrowse := (*state).HasBrowse()
+	//hasCommand := (*state).HasCommand()
+
+	if hasBrowse && (*state).GetBrowseState().BrowseClass == model.DatabaseTable {
+		// keys to process in this mode - Enter, d, :
+		return func(event *tcell.EventKey) *tcell.EventKey {
+			// Get current state from state manager
+
+			e := &model.Event{Event: event}
+
+			// if in command mode also send command bar text
+			//if state.GetMode().Kind == model.Command {
+			//	//e.Text = v.commandBar.GetCommand()
+			//}
+
+			return v.eventHandler(e)
+		}
+	}
+
 	// example key capture function
 	return func(event *tcell.EventKey) *tcell.EventKey {
 		// Get current state from state manager
@@ -80,9 +111,9 @@ func (v *ViewManager) OnStateTransition(transition model.StateTransition) {
 	newState, isPop := &transition.To, transition.IsPop
 	v.state = newState
 
-	if transition.To.GetMode().Kind == model.QuitKind {
-		v.App.Stop()
-	}
+	//if transition.To.GetMode().Kind == model.QuitKind {
+	//	v.App.Stop()
+	//}
 
 	if !isPop {
 		// on transition to new state add a page
@@ -105,7 +136,8 @@ func (v *ViewManager) OnStateTransition(transition model.StateTransition) {
 
 // Run - run event cycle
 func (v *ViewManager) Run() {
-	// app-level input capture that runs before component-specific handlers:
+	// App.SetInputCapture sets a function which captures all key events before they are
+	// forwarded to the key event handler of the primitive which currently has focus.
 	v.App.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyCtrlC {
 			v.App.Stop()

@@ -18,15 +18,17 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 		headers, data := csm.server.FetchTables(ctx)
 		serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
 
-		csm.PushState(ctx, &BrowseState{
-			class:      DatabaseTable,
-			HeaderInfo: &serverInfo,
+		browseState := &BrowseState{
+			BrowseClass: DatabaseTable,
+			HeaderInfo:  &serverInfo,
 			TableInfo: &TableInfo{
 				TableHeaders:      headers,
 				TableData:         data,
 				SelectedDataIndex: 0,
 			},
-		})
+		}
+		state := NewStateBuilder().SetBrowse(browseState).Build()
+		csm.PushState(ctx, state)
 
 		return nil
 	}
@@ -35,12 +37,6 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 	// assume no transition unless done
 	noChange := StateTransition{From: currentState, To: currentState, IsPop: false}
 
-	// Handle Ctrl-C from any mode to quit immediately
-	if ev.Event.Key() == tcell.KeyCtrlC {
-		csm.PushState(ctx, QuitState)
-		return nil
-	}
-
 	// Handle Escape from any mode to go back to previous state
 	if ev.Event.Key() == tcell.KeyEscape {
 		csm.PopState(ctx)
@@ -48,99 +44,108 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 	}
 
 	// If command bar is visible, handle only Enter else return event
-	if csm.GetCurrentState().GetMode().Kind == Command {
+	if csm.GetCurrentState().HasCommand() {
 		switch ev.Event.Key() {
 		case tcell.KeyEnter:
 			slog.Debug("enter in command mode")
 			command := ev.Text
 			// Process the command
 			switch command {
-			case "q", "quit":
-				csm.PushState(ctx, QuitState)
-
 			case "table":
 				headers, data := csm.server.FetchTables(ctx)
 				serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
 
-				csm.PushState(ctx, &BrowseState{
-					class:      DatabaseTable,
-					HeaderInfo: &serverInfo,
+				browseState := &BrowseState{
+					BrowseClass: DatabaseTable,
+					HeaderInfo:  &serverInfo,
 					TableInfo: &TableInfo{
 						TableHeaders:      headers,
 						TableData:         data,
 						SelectedDataIndex: 0,
 					},
-				})
+				}
+				state := NewStateBuilder().SetBrowse(browseState).Build()
+				csm.PushState(ctx, state)
 
 			case "db", "database":
 				headers, data := csm.server.FetchDatabases(ctx)
 				serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
 
-				csm.PushState(ctx, &BrowseState{
-					class:      Database,
-					HeaderInfo: &serverInfo,
+				browseState := &BrowseState{
+					BrowseClass: Database,
+					HeaderInfo:  &serverInfo,
 					TableInfo: &TableInfo{
 						TableHeaders:      headers,
 						TableData:         data,
 						SelectedDataIndex: 0,
 					},
-				})
+				}
+				state := NewStateBuilder().SetBrowse(browseState).Build()
+				csm.PushState(ctx, state)
 
 			case "view", "views":
 				headers, data := csm.server.FetchViews(ctx)
 				serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
 
-				csm.PushState(ctx, &BrowseState{
-					class:      View,
-					HeaderInfo: &serverInfo,
+				browseState := &BrowseState{
+					BrowseClass: View,
+					HeaderInfo:  &serverInfo,
 					TableInfo: &TableInfo{
 						TableHeaders:      headers,
 						TableData:         data,
 						SelectedDataIndex: 0,
 					},
-				})
+				}
+				state := NewStateBuilder().SetBrowse(browseState).Build()
+				csm.PushState(ctx, state)
 
 			case "procedure", "procedures", "proc", "procs":
 				headers, data := csm.server.FetchProcedures(ctx)
 				serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
 
-				csm.PushState(ctx, &BrowseState{
-					class:      Procedure,
-					HeaderInfo: &serverInfo,
+				browseState := &BrowseState{
+					BrowseClass: Procedure,
+					HeaderInfo:  &serverInfo,
 					TableInfo: &TableInfo{
 						TableHeaders:      headers,
 						TableData:         data,
 						SelectedDataIndex: 0,
 					},
-				})
+				}
+				state := NewStateBuilder().SetBrowse(browseState).Build()
+				csm.PushState(ctx, state)
 
 			case "function", "functions", "func", "funcs":
 				headers, data := csm.server.FetchFunctions(ctx)
 				serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
 
-				csm.PushState(ctx, &BrowseState{
-					class:      Function,
-					HeaderInfo: &serverInfo,
+				browseState := &BrowseState{
+					BrowseClass: Function,
+					HeaderInfo:  &serverInfo,
 					TableInfo: &TableInfo{
 						TableHeaders:      headers,
 						TableData:         data,
 						SelectedDataIndex: 0,
 					},
-				})
+				}
+				state := NewStateBuilder().SetBrowse(browseState).Build()
+				csm.PushState(ctx, state)
 
 			case "trigger", "triggers":
 				headers, data := csm.server.FetchTriggers(ctx)
 				serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
 
-				csm.PushState(ctx, &BrowseState{
-					class:      Trigger,
-					HeaderInfo: &serverInfo,
+				browseState := &BrowseState{
+					BrowseClass: Trigger,
+					HeaderInfo:  &serverInfo,
 					TableInfo: &TableInfo{
 						TableHeaders:      headers,
 						TableData:         data,
 						SelectedDataIndex: 0,
 					},
-				})
+				}
+				state := NewStateBuilder().SetBrowse(browseState).Build()
+				csm.PushState(ctx, state)
 			}
 
 			return nil
@@ -152,7 +157,7 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 	}
 
 	// If SQL mode is active, handle SQL commands on Enter else return event
-	if csm.GetCurrentState().GetMode().Kind == SQL {
+	if csm.GetCurrentState().HasSql() {
 		switch ev.Event.Key() {
 		case tcell.KeyEnter:
 			slog.Debug("enter in SQL mode")
@@ -169,7 +174,7 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 	}
 
 	// If Editor mode is active, handle F5 to execute SQL
-	if csm.GetCurrentState().GetMode().Kind == Editor {
+	if csm.GetCurrentState().HasFullSql() {
 		switch ev.Event.Key() {
 		case tcell.KeyF5:
 			slog.Debug("F5 in editor mode")
@@ -185,20 +190,19 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 		}
 	}
 
-	// action on row in browse or tree selection
-	if csm.GetCurrentState().GetMode().Kind == Browse {
-		// Handle tree node selection
-	}
-
 	// Normal key bindings when command bar is not visible
 	switch ev.Event.Key() {
 	case tcell.KeyRune:
 		switch ev.Event.Rune() {
 		case ':':
-			csm.PushState(ctx, &CommandState{})
+			currentState := csm.GetCurrentState()
+			newState := NewStateBuilderFromState(currentState).SetEmptyCommand().Build()
+			csm.PushState(ctx, newState)
 			return nil
 		case '!':
-			csm.PushState(ctx, &SqlState{})
+			currentState := csm.GetCurrentState()
+			newState := NewStateBuilderFromState(currentState).SetEmptySql().Build()
+			csm.PushState(ctx, newState)
 			return nil
 		case 's':
 			//csm.PushState(ctx, &EditorState{
@@ -228,13 +232,14 @@ func (csm *ContextualStateManager) createStateWithSqlRows(ctx context.Context, S
 	headers, data := csm.server.FetchSqlRows(ctx, SQL)
 	serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
 
-	return &BrowseState{
-		class:      TableRow,
-		HeaderInfo: &serverInfo,
+	browseState := &BrowseState{
+		BrowseClass: TableRow,
+		HeaderInfo:  &serverInfo,
 		TableInfo: &TableInfo{
 			TableHeaders:      headers,
 			TableData:         data,
 			SelectedDataIndex: 0,
 		},
 	}
+	return NewStateBuilder().SetBrowse(browseState).Build()
 }
