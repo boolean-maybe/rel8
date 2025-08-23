@@ -13,7 +13,7 @@ type CommandBar struct {
 }
 
 // NewCommandBar creates a new command bar with proper configuration
-func NewCommandBar() *CommandBar {
+func NewCommandBar() *tview.Flex {
 	// Create command bar (initially hidden)
 	textArea := tview.NewTextArea()
 	textArea.SetBackgroundColor(Colors.BackgroundDefault)
@@ -31,12 +31,13 @@ func NewCommandBar() *CommandBar {
 		return event
 	})
 
-	return &CommandBar{TextArea: textArea}
-}
+	textArea.SetText(" > ", true)
 
-// Show initializes the command bar for display
-func (cb *CommandBar) Show() {
-	cb.SetText("> ", true)
+	return tview.NewFlex().
+		SetDirection(tview.FlexColumn).
+		AddItem(nil, 0, 0, false). // Left padding
+		AddItem(textArea, 0, 1, true).
+		AddItem(nil, 0, 0, false) // Right padding
 }
 
 // GetCommand returns the command text without the "> " prefix
@@ -51,13 +52,4 @@ func (cb *CommandBar) GetCommand() string {
 // Clear resets the command bar
 func (cb *CommandBar) Clear() {
 	cb.SetText("> ", true)
-}
-
-// WrapCommandBar wraps command bar with same padding to align borders
-func WrapCommandBar(commandBar *CommandBar) *tview.Flex {
-	return tview.NewFlex().
-		SetDirection(tview.FlexColumn).
-		AddItem(nil, 0, 0, false). // Left padding
-		AddItem(commandBar.TextArea, 0, 1, true).
-		AddItem(nil, 0, 0, false) // Right padding
 }

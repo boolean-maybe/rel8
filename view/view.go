@@ -31,7 +31,7 @@ func NewView(stateManager *model.ContextualStateManager) *View {
 	grid := NewEmptyGrid()
 
 	// Create command bar (initially hidden)
-	commandBar := NewCommandBar()
+	//commandBar := NewCommandBar()
 
 	// Set the server in components
 	tree.SetServer(stateManager.GetServer())
@@ -52,7 +52,6 @@ func NewView(stateManager *model.ContextualStateManager) *View {
 		grid:         grid,
 		details:      details,
 		editor:       editor,
-		commandBar:   commandBar,
 	}
 
 	return view

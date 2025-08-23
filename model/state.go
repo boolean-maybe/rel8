@@ -39,6 +39,7 @@ type EventType int
 const (
 	Init EventType = iota
 	Quit
+	Other
 )
 
 var InitEvent = &Event{

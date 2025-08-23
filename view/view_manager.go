@@ -42,27 +42,25 @@ func (v *ViewManager) makeComponent(state *model.State) tview.Primitive {
 		return flex
 	}
 
-	//if mode.Kind == model.Command {
-	//	// command mode
-	//
-	//	// Create command bar (initially hidden)
-	//	commandBar := NewCommandBar()
-	//
-	//	result := (*state).(*model.BrowseState).GetData().(struct {
-	//		TableInfo  *model.TableInfo
-	//		HeaderInfo *model.HeaderInfo
-	//	})
-	//
-	//	data := result.TableInfo
-	//	headerInfo := result.HeaderInfo
-	//	header := NewHeader(headerInfo)
-	//	grid := NewGrid(data.TableHeaders, data.TableData)
-	//
-	//	flex := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(header, 7, 0, false).AddItem(WrapGrid(grid), 0, 1, true)
-	//	return flex
-	//}
+	if hasBrowse && hasCommand {
+		// command mode
 
-	// example component
+		// Create command bar (initially hidden)
+		commandBar := NewCommandBar()
+
+		data := (*state).GetBrowseState().TableInfo
+		headerInfo := (*state).GetBrowseState().HeaderInfo
+		header := NewHeader(headerInfo)
+		grid := NewGrid(data.TableHeaders, data.TableData)
+
+		flex := tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(header, 7, 0, false).
+			AddItem(commandBar, 3, 0, false).
+			AddItem(WrapGrid(grid), 0, 1, true)
+
+		return flex
+	}
+
 	box := tview.NewBox().SetTitle("None").SetBorder(true)
 	return box
 }
@@ -78,7 +76,10 @@ func (v *ViewManager) makeInputCapture(state *model.State) func(event *tcell.Eve
 		return func(event *tcell.EventKey) *tcell.EventKey {
 			// Get current state from state manager
 
-			e := &model.Event{Event: event}
+			e := &model.Event{
+				EventType: model.Other,
+				Event:     event,
+			}
 
 			// if in command mode also send command bar text
 			//if state.GetMode().Kind == model.Command {
@@ -122,8 +123,10 @@ func (v *ViewManager) OnStateTransition(transition model.StateTransition) {
 		// create its key capture
 		capture := v.makeInputCapture(newState)
 
-		if box, ok := component.(*tview.Box); ok {
-			box.SetInputCapture(capture)
+		if flex, ok := component.(*tview.Flex); ok {
+			flex.SetInputCapture(capture)
+		} else {
+			println("Error creating box")
 		}
 
 		v.pages.AddAndSwitchToPage("name", component, true)

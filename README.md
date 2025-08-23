@@ -4,6 +4,9 @@ A terminal-based database browser and management tool.
 
 ## Usage
 
+to run from IDEA select `Emulate terminal in output console` in Run configuration
+and add TERM=xterm-256color env variable
+
 ### Basic Usage
 ```shell
 ./rel8
