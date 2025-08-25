@@ -13,7 +13,7 @@ type ViewManager struct {
 	eventHandler func(ev *model.Event) *tcell.EventKey
 	App          *tview.Application
 	pages        *tview.Pages
-	state        *model.State
+	state        model.State
 }
 
 func NewViewManager(eventHandler func(ev *model.Event) *tcell.EventKey, app *tview.Application, pages *tview.Pages) *ViewManager {
@@ -24,52 +24,69 @@ func NewViewManager(eventHandler func(ev *model.Event) *tcell.EventKey, app *tvi
 	}
 }
 
-// create component out of new state
-func (v *ViewManager) makeComponent(state *model.State) tview.Primitive {
+type UIComponent struct {
+	item       tview.Primitive
+	fixedSize  int
+	proportion int
+	focus      bool
+}
 
-	hasBrowse := (*state).HasBrowse()
-	hasCommand := (*state).HasCommand()
+// create UI component out of new state
+func (v *ViewManager) makeComponent(state model.State) tview.Primitive {
+	components := make([]UIComponent, 0)
 
-	if hasBrowse && !hasCommand && (*state).GetBrowseState().BrowseClass == model.DatabaseTable {
-		// browsing database tables
+	headerInfo := state.GetHeaderInfo()
+	header := NewHeader(headerInfo)
+	components = append(components, UIComponent{
+		header,
+		7,
+		0,
+		false,
+	})
 
-		data := (*state).GetBrowseState().TableInfo
-		headerInfo := (*state).GetBrowseState().HeaderInfo
-		header := NewHeader(headerInfo)
-		grid := NewGrid(data.TableHeaders, data.TableData)
-
-		flex := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(header, 7, 0, false).AddItem(WrapGrid(grid), 0, 1, true)
-		return flex
-	}
-
-	if hasBrowse && hasCommand {
-		// command mode
-
-		// Create command bar (initially hidden)
+	if state.HasCommand() {
 		commandBar := NewCommandBar()
-
-		data := (*state).GetBrowseState().TableInfo
-		headerInfo := (*state).GetBrowseState().HeaderInfo
-		header := NewHeader(headerInfo)
-		grid := NewGrid(data.TableHeaders, data.TableData)
-
-		flex := tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(header, 7, 0, false).
-			AddItem(commandBar, 3, 0, false).
-			AddItem(WrapGrid(grid), 0, 1, true)
-
-		return flex
+		components = append(components, UIComponent{
+			commandBar,
+			3,
+			0,
+			true,
+		})
 	}
 
-	box := tview.NewBox().SetTitle("None").SetBorder(true)
-	return box
+	if state.HasBrowse() && state.GetBrowseState().BrowseClass == model.DatabaseTable {
+		// browsing database tables
+		data := state.GetBrowseState().TableInfo
+		grid := NewGrid(data.TableHeaders, data.TableData, v.eventHandler)
+
+		components = append(components, UIComponent{
+			grid,
+			0,
+			1,
+			!state.HasCommand(),
+		})
+
+	}
+
+	flex := tview.NewFlex().SetDirection(tview.FlexRow)
+	for _, component := range components {
+		flex.AddItem(component.item, component.fixedSize, component.proportion, component.focus)
+	}
+
+	return flex
 }
 
 // create input capture function for new state
 func (v *ViewManager) makeInputCapture(state *model.State) func(event *tcell.EventKey) *tcell.EventKey {
 
 	hasBrowse := (*state).HasBrowse()
-	//hasCommand := (*state).HasCommand()
+	hasCommand := (*state).HasCommand()
+
+	if hasCommand {
+		return func(event *tcell.EventKey) *tcell.EventKey {
+			return event
+		}
+	}
 
 	if hasBrowse && (*state).GetBrowseState().BrowseClass == model.DatabaseTable {
 		// keys to process in this mode - Enter, d, :
@@ -109,7 +126,7 @@ func (v *ViewManager) makeInputCapture(state *model.State) func(event *tcell.Eve
 // New Notify process events - inspect model and redraw
 func (v *ViewManager) OnStateTransition(transition model.StateTransition) {
 
-	newState, isPop := &transition.To, transition.IsPop
+	newState, isPop := transition.To, transition.IsPop
 	v.state = newState
 
 	//if transition.To.GetMode().Kind == model.QuitKind {
@@ -121,13 +138,13 @@ func (v *ViewManager) OnStateTransition(transition model.StateTransition) {
 		// create visual component
 		component := v.makeComponent(newState)
 		// create its key capture
-		capture := v.makeInputCapture(newState)
+		//capture := v.makeInputCapture(newState)
 
-		if flex, ok := component.(*tview.Flex); ok {
-			flex.SetInputCapture(capture)
-		} else {
-			println("Error creating box")
-		}
+		//if flex, ok := component.(*tview.Flex); ok {
+		//	flex.SetInputCapture(capture)
+		//} else {
+		//	println("Error creating box")
+		//}
 
 		v.pages.AddAndSwitchToPage("name", component, true)
 	} else {

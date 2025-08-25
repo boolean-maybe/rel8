@@ -20,14 +20,16 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 
 		browseState := &BrowseState{
 			BrowseClass: DatabaseTable,
-			HeaderInfo:  &serverInfo,
 			TableInfo: &TableInfo{
 				TableHeaders:      headers,
 				TableData:         data,
 				SelectedDataIndex: 0,
 			},
 		}
-		state := NewStateBuilder().SetBrowse(browseState).Build()
+		commonState := &CommonState{
+			HeaderInfo: &serverInfo,
+		}
+		state := NewStateBuilder().SetCommon(commonState).SetBrowse(browseState).Build()
 		csm.PushState(ctx, state)
 
 		return nil
@@ -57,14 +59,16 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 
 				browseState := &BrowseState{
 					BrowseClass: DatabaseTable,
-					HeaderInfo:  &serverInfo,
 					TableInfo: &TableInfo{
 						TableHeaders:      headers,
 						TableData:         data,
 						SelectedDataIndex: 0,
 					},
 				}
-				state := NewStateBuilder().SetBrowse(browseState).Build()
+				commonState := &CommonState{
+					HeaderInfo: &serverInfo,
+				}
+				state := NewStateBuilder().SetCommon(commonState).SetBrowse(browseState).Build()
 				csm.PushState(ctx, state)
 
 			case "db", "database":
@@ -73,14 +77,16 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 
 				browseState := &BrowseState{
 					BrowseClass: Database,
-					HeaderInfo:  &serverInfo,
 					TableInfo: &TableInfo{
 						TableHeaders:      headers,
 						TableData:         data,
 						SelectedDataIndex: 0,
 					},
 				}
-				state := NewStateBuilder().SetBrowse(browseState).Build()
+				commonState := &CommonState{
+					HeaderInfo: &serverInfo,
+				}
+				state := NewStateBuilder().SetCommon(commonState).SetBrowse(browseState).Build()
 				csm.PushState(ctx, state)
 
 			case "view", "views":
@@ -89,14 +95,16 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 
 				browseState := &BrowseState{
 					BrowseClass: View,
-					HeaderInfo:  &serverInfo,
 					TableInfo: &TableInfo{
 						TableHeaders:      headers,
 						TableData:         data,
 						SelectedDataIndex: 0,
 					},
 				}
-				state := NewStateBuilder().SetBrowse(browseState).Build()
+				commonState := &CommonState{
+					HeaderInfo: &serverInfo,
+				}
+				state := NewStateBuilder().SetCommon(commonState).SetBrowse(browseState).Build()
 				csm.PushState(ctx, state)
 
 			case "procedure", "procedures", "proc", "procs":
@@ -105,14 +113,16 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 
 				browseState := &BrowseState{
 					BrowseClass: Procedure,
-					HeaderInfo:  &serverInfo,
 					TableInfo: &TableInfo{
 						TableHeaders:      headers,
 						TableData:         data,
 						SelectedDataIndex: 0,
 					},
 				}
-				state := NewStateBuilder().SetBrowse(browseState).Build()
+				commonState := &CommonState{
+					HeaderInfo: &serverInfo,
+				}
+				state := NewStateBuilder().SetCommon(commonState).SetBrowse(browseState).Build()
 				csm.PushState(ctx, state)
 
 			case "function", "functions", "func", "funcs":
@@ -121,14 +131,16 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 
 				browseState := &BrowseState{
 					BrowseClass: Function,
-					HeaderInfo:  &serverInfo,
 					TableInfo: &TableInfo{
 						TableHeaders:      headers,
 						TableData:         data,
 						SelectedDataIndex: 0,
 					},
 				}
-				state := NewStateBuilder().SetBrowse(browseState).Build()
+				commonState := &CommonState{
+					HeaderInfo: &serverInfo,
+				}
+				state := NewStateBuilder().SetCommon(commonState).SetBrowse(browseState).Build()
 				csm.PushState(ctx, state)
 
 			case "trigger", "triggers":
@@ -137,14 +149,16 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 
 				browseState := &BrowseState{
 					BrowseClass: Trigger,
-					HeaderInfo:  &serverInfo,
 					TableInfo: &TableInfo{
 						TableHeaders:      headers,
 						TableData:         data,
 						SelectedDataIndex: 0,
 					},
 				}
-				state := NewStateBuilder().SetBrowse(browseState).Build()
+				commonState := &CommonState{
+					HeaderInfo: &serverInfo,
+				}
+				state := NewStateBuilder().SetCommon(commonState).SetBrowse(browseState).Build()
 				csm.PushState(ctx, state)
 			}
 
@@ -234,12 +248,14 @@ func (csm *ContextualStateManager) createStateWithSqlRows(ctx context.Context, S
 
 	browseState := &BrowseState{
 		BrowseClass: TableRow,
-		HeaderInfo:  &serverInfo,
 		TableInfo: &TableInfo{
 			TableHeaders:      headers,
 			TableData:         data,
 			SelectedDataIndex: 0,
 		},
 	}
-	return NewStateBuilder().SetBrowse(browseState).Build()
+	commonState := &CommonState{
+		HeaderInfo: &serverInfo,
+	}
+	return NewStateBuilder().SetCommon(commonState).SetBrowse(browseState).Build()
 }

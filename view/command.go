@@ -13,8 +13,7 @@ type CommandBar struct {
 }
 
 // NewCommandBar creates a new command bar with proper configuration
-func NewCommandBar() *tview.Flex {
-	// Create command bar (initially hidden)
+func NewCommandBar() *tview.TextArea {
 	textArea := tview.NewTextArea()
 	textArea.SetBackgroundColor(Colors.BackgroundDefault)
 	textArea.SetBorder(true).SetBorderPadding(0, 0, 0, 0).SetBorderColor(Colors.BorderDefault)
@@ -23,7 +22,7 @@ func NewCommandBar() *tview.Flex {
 	textArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyBackspace2 {
 			text := textArea.GetText()
-			if len(text) <= 2 {
+			if len(text) <= 3 {
 				// Don't allow backspace if we're at or before the prompt
 				return nil
 			}
@@ -32,12 +31,7 @@ func NewCommandBar() *tview.Flex {
 	})
 
 	textArea.SetText(" > ", true)
-
-	return tview.NewFlex().
-		SetDirection(tview.FlexColumn).
-		AddItem(nil, 0, 0, false). // Left padding
-		AddItem(textArea, 0, 1, true).
-		AddItem(nil, 0, 0, false) // Right padding
+	return textArea
 }
 
 // GetCommand returns the command text without the "> " prefix

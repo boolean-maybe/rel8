@@ -22,10 +22,8 @@ type TableInfo struct {
 	SelectedDataIndex int
 }
 
-type HeaderInfo map[string]string
-
 type BrowseState struct {
+	*CommonState
 	BrowseClass BrowseClass
 	TableInfo   *TableInfo
-	HeaderInfo  *HeaderInfo
 }

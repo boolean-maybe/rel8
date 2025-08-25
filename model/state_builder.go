@@ -1,6 +1,7 @@
 package model
 
 type StateBuilder struct {
+	commonState  *CommonState
 	hasBrowse    bool
 	browseState  *BrowseState
 	hasCommand   bool
@@ -17,6 +18,7 @@ type StateBuilder struct {
 
 func NewStateBuilder() *StateBuilder {
 	return &StateBuilder{
+		commonState:  nil,
 		hasBrowse:    false,
 		browseState:  nil,
 		hasCommand:   false,
@@ -34,6 +36,14 @@ func NewStateBuilder() *StateBuilder {
 
 func NewStateBuilderFromState(state State) *StateBuilder {
 	builder := &StateBuilder{}
+
+	// Copy the CommonState (header info)
+	headerInfo := state.GetHeaderInfo()
+	if headerInfo != nil {
+		builder.commonState = &CommonState{
+			HeaderInfo: headerInfo,
+		}
+	}
 
 	if state.HasBrowse() {
 		browseState := state.GetBrowseState()
@@ -76,6 +86,7 @@ func NewStateBuilderFromState(state State) *StateBuilder {
 
 func (b *StateBuilder) Build() State {
 	return &ConcreteState{
+		CommonState:  b.commonState,
 		hasBrowse:    b.hasBrowse,
 		browseState:  b.browseState,
 		hasCommand:   b.hasCommand,
@@ -89,6 +100,11 @@ func (b *StateBuilder) Build() State {
 		hasFullSql:   b.hasFullSql,
 		fullSqlState: b.fullSqlState,
 	}
+}
+
+func (b *StateBuilder) SetCommon(state *CommonState) *StateBuilder {
+	b.commonState = state
+	return b
 }
 
 func (b *StateBuilder) SetBrowse(state *BrowseState) *StateBuilder {
@@ -146,6 +162,7 @@ func (b *StateBuilder) SetFullSql(state *FullSqlState) *StateBuilder {
 }
 
 type ConcreteState struct {
+	*CommonState
 	hasBrowse    bool
 	browseState  *BrowseState
 	hasCommand   bool

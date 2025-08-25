@@ -8,6 +8,8 @@ type Action interface {
 }
 
 type State interface {
+	GetHeaderInfo() *HeaderInfo
+
 	HasCommand() bool
 	GetCommandState() CommandState
 

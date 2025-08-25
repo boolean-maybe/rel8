@@ -3,6 +3,7 @@ package view
 import (
 	"reflect"
 	"rel8/db"
+	"rel8/model"
 	"unsafe"
 
 	"github.com/gdamore/tcell/v2"
@@ -16,11 +17,29 @@ type Grid struct {
 }
 
 // NewGrid creates a new grid with proper configuration
-func NewGrid(headers []string, data []db.TableData) *Grid {
+func NewGrid(headers []string, data []db.TableData, eventHandler func(ev *model.Event) *tcell.EventKey) *Grid {
 	table := configureTable()
 	grid := &Grid{Table: table, headerCount: len(headers)}
 	attachSelectionHandler(grid)
 	grid.Populate(headers, data)
+
+	grid.SetInputCapture(
+		// keys to process in this mode - Enter
+		func(event *tcell.EventKey) *tcell.EventKey {
+			// keys in actions
+			if event.Key() == tcell.KeyEnter || (event.Key() == tcell.KeyRune && event.Rune() == ':') {
+				//todo current row must be sent
+				e := &model.Event{
+					EventType: model.Other,
+					Event:     event,
+				}
+
+				return eventHandler(e)
+			}
+
+			return event
+		})
+
 	return grid
 }
 
@@ -275,15 +294,6 @@ func setExpansion(col int, cell *tview.TableCell) {
 	//if col == 0 {
 	cell.SetExpansion(1)
 	//}
-}
-
-// WrapGrid wraps grid with padding (only left/right, NO top/bottom)
-func WrapGrid(grid *Grid) *tview.Flex {
-	return tview.NewFlex().
-		SetDirection(tview.FlexColumn).
-		AddItem(nil, 0, 0, false). // Left padding
-		AddItem(grid.Table, 0, 1, true).
-		AddItem(nil, 0, 0, false) // Right padding
 }
 
 // getFields extracts fields from a struct
