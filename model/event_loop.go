@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"log/slog"
+	"rel8/db"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -206,6 +207,41 @@ func (csm *ContextualStateManager) HandleEvent(ev *Event) *tcell.EventKey {
 
 	// Normal key bindings when command bar is not visible
 	switch ev.Event.Key() {
+	case tcell.KeyUp:
+		currentState.GetBrowseState().TableInfo.SelectedDataIndex--
+		return ev.Event
+	case tcell.KeyDown:
+		currentState.GetBrowseState().TableInfo.SelectedDataIndex++
+		return ev.Event
+
+	case tcell.KeyEnter:
+		currentState := csm.GetCurrentState()
+		if currentState.HasBrowse() && currentState.GetBrowseState().BrowseClass == DatabaseTable {
+			// extract table name
+			selectedIndex := currentState.GetBrowseState().TableInfo.SelectedDataIndex
+			tableData := currentState.GetBrowseState().TableInfo.TableData
+			tableName := tableData[selectedIndex].(db.PostgresTable).Name
+
+			headers, data := csm.server.FetchTableRows(ctx, tableName)
+			serverInfo := HeaderInfo(csm.server.GetServerInfo(ctx))
+
+			browseState := &BrowseState{
+				BrowseClass: TableRow,
+				TableInfo: &TableInfo{
+					TableHeaders:      headers,
+					TableData:         data,
+					SelectedDataIndex: 0,
+				},
+			}
+			commonState := &CommonState{
+				HeaderInfo: &serverInfo,
+			}
+			state := NewStateBuilder().SetCommon(commonState).SetBrowse(browseState).Build()
+			csm.PushState(ctx, state)
+		}
+
+		return nil
+
 	case tcell.KeyRune:
 		switch ev.Event.Rune() {
 		case ':':

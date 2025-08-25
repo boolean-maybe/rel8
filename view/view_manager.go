@@ -1,6 +1,7 @@
 package view
 
 import (
+	"fmt"
 	"log/slog"
 	"rel8/model"
 
@@ -13,6 +14,7 @@ type ViewManager struct {
 	eventHandler func(ev *model.Event) *tcell.EventKey
 	App          *tview.Application
 	pages        *tview.Pages
+	pageCount    int
 	state        model.State
 }
 
@@ -21,6 +23,7 @@ func NewViewManager(eventHandler func(ev *model.Event) *tcell.EventKey, app *tvi
 		eventHandler: eventHandler,
 		App:          app,
 		pages:        pages,
+		pageCount:    0,
 	}
 }
 
@@ -54,7 +57,8 @@ func (v *ViewManager) makeComponent(state model.State) tview.Primitive {
 		})
 	}
 
-	if state.HasBrowse() && state.GetBrowseState().BrowseClass == model.DatabaseTable {
+	//if state.HasBrowse() && state.GetBrowseState().BrowseClass == model.DatabaseTable {
+	if state.HasBrowse() {
 		// browsing database tables
 		data := state.GetBrowseState().TableInfo
 		grid := NewGrid(data.TableHeaders, data.TableData, v.eventHandler)
@@ -76,81 +80,30 @@ func (v *ViewManager) makeComponent(state model.State) tview.Primitive {
 	return flex
 }
 
-// create input capture function for new state
-func (v *ViewManager) makeInputCapture(state *model.State) func(event *tcell.EventKey) *tcell.EventKey {
-
-	hasBrowse := (*state).HasBrowse()
-	hasCommand := (*state).HasCommand()
-
-	if hasCommand {
-		return func(event *tcell.EventKey) *tcell.EventKey {
-			return event
-		}
-	}
-
-	if hasBrowse && (*state).GetBrowseState().BrowseClass == model.DatabaseTable {
-		// keys to process in this mode - Enter, d, :
-		return func(event *tcell.EventKey) *tcell.EventKey {
-			// Get current state from state manager
-
-			e := &model.Event{
-				EventType: model.Other,
-				Event:     event,
-			}
-
-			// if in command mode also send command bar text
-			//if state.GetMode().Kind == model.Command {
-			//	//e.Text = v.commandBar.GetCommand()
-			//}
-
-			return v.eventHandler(e)
-		}
-	}
-
-	// example key capture function
-	return func(event *tcell.EventKey) *tcell.EventKey {
-		// Get current state from state manager
-
-		e := &model.Event{Event: event}
-
-		// if in command mode also send command bar text
-		//if state.GetMode().Kind == model.Command {
-		//	//e.Text = v.commandBar.GetCommand()
-		//}
-
-		//todo this is a single place that requires state manager. Replace with a function
-		return v.eventHandler(e)
-	}
-}
-
 // New Notify process events - inspect model and redraw
 func (v *ViewManager) OnStateTransition(transition model.StateTransition) {
 
 	newState, isPop := transition.To, transition.IsPop
 	v.state = newState
 
-	//if transition.To.GetMode().Kind == model.QuitKind {
-	//	v.App.Stop()
-	//}
-
 	if !isPop {
-		// on transition to new state add a page
-		// create visual component
+		// on transition to new state add a page and create visual component
 		component := v.makeComponent(newState)
 		// create its key capture
 		//capture := v.makeInputCapture(newState)
 
 		//if flex, ok := component.(*tview.Flex); ok {
 		//	flex.SetInputCapture(capture)
-		//} else {
-		//	println("Error creating box")
 		//}
 
-		v.pages.AddAndSwitchToPage("name", component, true)
+		v.pageCount++
+		v.pages.AddAndSwitchToPage(fmt.Sprintf("page-%d", v.pageCount), component, true)
 	} else {
 		// on popping remove current page and show previous
-		name, _ := v.pages.GetFrontPage()
-		v.pages.RemovePage(name)
+		//name, _ := v.pages.GetFrontPage()
+		v.pages.RemovePage(fmt.Sprintf("page-%d", v.pageCount))
+		v.pageCount--
+		v.pages.SwitchToPage(fmt.Sprintf("page-%d", v.pageCount))
 	}
 }
 
@@ -163,26 +116,13 @@ func (v *ViewManager) Run() {
 			v.App.Stop()
 		}
 
+		if event.Key() == tcell.KeyEscape {
+			e := &model.Event{Event: event, EventType: model.Other}
+			v.eventHandler(e)
+		}
+
 		// let view component handle other events
 		return event
-
-		// if events need to be forwarded to the state manager
-		// e := &model.Event{Event: event}
-		// return v.eventHandler(e)
-
-		// Get current state from state manager
-		// TODO: Need access to state manager or current state
-		//currentState := v.state
-		//
-		//e := &model.Event{Event: event}
-		//
-		//// if in command mode also send command bar text
-		//if (*currentState).GetMode().Kind == model.Command {
-		//	//e.Text = v.commandBar.GetCommand()
-		//}
-		//
-		////todo this is a single place that requires state manager. Replace with a function
-		//return v.eventHandler(e)
 	})
 
 	// Run the application

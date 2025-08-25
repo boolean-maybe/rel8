@@ -27,7 +27,9 @@ func NewGrid(headers []string, data []db.TableData, eventHandler func(ev *model.
 		// keys to process in this mode - Enter
 		func(event *tcell.EventKey) *tcell.EventKey {
 			// keys in actions
-			if event.Key() == tcell.KeyEnter || (event.Key() == tcell.KeyRune && event.Rune() == ':') {
+			if event.Key() == tcell.KeyEnter ||
+				event.Key() == tcell.KeyUp || event.Key() == tcell.KeyDown ||
+				(event.Key() == tcell.KeyRune && event.Rune() == ':') {
 				//todo current row must be sent
 				e := &model.Event{
 					EventType: model.Other,
